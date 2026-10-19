@@ -1,0 +1,80 @@
+# nginx for the ShippingERP web app (Docker). One origin for the browser:
+#   /            -> the React app (index.html for every client route)
+#   /api/, /health/ -> the ASP.NET Core API (container "api")
+# TLS is terminated by the reverse proxy in front (Caddy profile "proxy", IIS, a load balancer...).
+
+# The real client IP when a proxy (Caddy) is in front: trust X-Forwarded-For only from the Docker networks.
+# With the "proxy" profile publish this container on 127.0.0.1 only (WEB_BIND), so nobody can bypass Caddy.
+set_real_ip_from 172.16.0.0/12;
+real_ip_header X-Forwarded-For;
+real_ip_recursive on;
+
+map $http_x_forwarded_proto $forwarded_proto {
+    default $http_x_forwarded_proto;
+    ''      $scheme;
+}
+
+server {
+    listen 8080;
+    server_name _;
+    root /usr/share/nginx/html;
+    server_tokens off;
+
+    # Proof-of-delivery photos / attachments are up to 5 MB each (two per delivery) + form fields.
+    client_max_body_size 12m;
+
+    gzip on;
+    gzip_comp_level 5;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+
+    # Security headers for every response of the app.
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(self), geolocation=(self), microphone=()" always;
+    # Emotion (MUI) injects <style> tags: style-src needs 'unsafe-inline'. Scripts: only our own files.
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
+
+    # Container health check (does not depend on the API).
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok";
+    }
+
+    # API and API health: same origin, so the SameSite=Strict refresh cookie works and no CORS is needed.
+    location ~ ^/(api|health)/ {
+        proxy_pass http://${API_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
+        proxy_read_timeout 120s;   # large Excel / PDF exports
+        proxy_buffering on;
+    }
+
+    # Hashed bundles: cache for a year.
+    location /assets/ {
+        access_log off;
+        expires 1y;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        add_header X-Content-Type-Options "nosniff" always;
+        try_files $uri =404;
+    }
+
+    # index.html is never cached, so a new deployment is picked up at once.
+    location = /index.html {
+        add_header Cache-Control "no-store";
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
+    }
+
+    # React Router: every unknown path is a client route.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

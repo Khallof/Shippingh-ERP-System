@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Infrastructure layer: EF Core, SQL Server, ASP.NET Core Identity stores, JWT creation, seeding,
+    external services (SMS, email, files...). It implements the interfaces defined in Application.
+  -->
+  <PropertyGroup>
+    <RootNamespace>ShippingERP.Infrastructure</RootNamespace>
+    <AssemblyName>ShippingERP.Infrastructure</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="8.0.0" />
+    <!-- Same version that Microsoft.AspNetCore.Authentication.JwtBearer 8.0.11 uses in the API project. -->
+    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="7.1.2" />
+  </ItemGroup>
+
+  <!--
+    Step 4 (shipments):
+    - ClosedXML (MIT): read / write Excel files for the shipment import.
+    - QuestPDF (Community MIT license for companies under USD 1M revenue, commercial license otherwise): label PDFs.
+    - ZXing.Net (Apache-2.0): Code 128 barcodes and QR codes as SVG.
+  -->
+  <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.104.2" />
+    <PackageReference Include="QuestPDF" Version="2025.12.4" />
+    <PackageReference Include="ZXing.Net" Version="0.16.9" />
+  </ItemGroup>
+
+  <!-- Cairo font (SIL Open Font License, see Fonts/OFL.txt): Arabic + Latin on labels, even in Docker without fonts. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Shipments\Labels\Fonts\*.ttf" />
+    <None Include="Shipments\Labels\Fonts\OFL.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShippingERP.Application\ShippingERP.Application.csproj" />
+  </ItemGroup>
+
+</Project>

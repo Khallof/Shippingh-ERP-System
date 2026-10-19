@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Application layer: use cases, DTOs, validators, mapping configurations and interfaces.
+    It depends ONLY on Domain. It defines interfaces that Infrastructure implements.
+  -->
+  <PropertyGroup>
+    <RootNamespace>ShippingERP.Application</RootNamespace>
+    <AssemblyName>ShippingERP.Application</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Mapster (MIT license) is used for object mapping instead of AutoMapper:
+      AutoMapper 13.x has a high-severity vulnerability (CVE-2026-32933) and the patched versions (15.1.1+) are commercial.
+    -->
+    <PackageReference Include="Mapster" Version="10.0.13" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.11.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShippingERP.Domain\ShippingERP.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

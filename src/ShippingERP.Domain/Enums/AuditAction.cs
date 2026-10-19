@@ -1,0 +1,108 @@
+namespace ShippingERP.Domain.Enums;
+
+/// <summary>
+/// Security events written to the AuditLogs table. Stored as text (e.g. "LoginFailed"),
+/// so never rename a value; add new ones at the end.
+/// </summary>
+public enum AuditAction
+{
+    Login = 1,
+    LoginFailed = 2,
+    RefreshTokenRevoked = 3,
+    RefreshTokenReuseDetected = 4,
+    PasswordChanged = 5,
+    UserCreated = 6,
+    UserUpdated = 7,
+    UserActivated = 8,
+    UserDeactivated = 9,
+    RoleCreated = 10,
+    RolePermissionsChanged = 11,
+
+    // Master data (step 3). EntityName says which table (Branch, Customer, Vehicle...).
+    MasterDataCreated = 12,
+    MasterDataUpdated = 13,
+    MasterDataActivated = 14,
+    MasterDataDeactivated = 15,
+    MasterDataDeleted = 16,
+
+    // Shipments (step 4). Status changes are in ShipmentStatusHistory; these rows cover the other important events.
+    ShipmentCreated = 17,
+    ShipmentUpdated = 18,
+    ShipmentCancelled = 19,
+    ShipmentStatusCorrected = 20,
+    ShipmentsImported = 21,
+    ShipmentAttachmentUploaded = 22,
+    ShipmentAttachmentDeleted = 23,
+    ShipmentDriverAssigned = 24,
+    ShippingSettingsChanged = 25,
+
+    // Pricing and receivables (step 5). Money documents also have their own sub-ledger rows.
+    ShipmentRepriced = 26,
+    PriceOverrideRequested = 27,
+    PriceOverrideApproved = 28,
+    PriceOverrideRejected = 29,
+    InvoiceCreated = 30,
+    InvoiceUpdated = 31,
+    InvoiceIssued = 32,
+    InvoiceCancelled = 33,
+    CreditNoteIssued = 34,
+    CustomerPaymentRecorded = 35,
+    CustomerPaymentAllocated = 36,
+
+    // COD and cash (step 6). Every money movement also has its own immutable sub-ledger rows
+    // (CODTransactionHistory, DriverCashMovement, CashboxTransaction).
+    CodCollected = 37,
+    DriverCashHandedOver = 38,
+    CodMarkedReady = 39,
+    CodDisputeOpened = 40,
+    CodDisputeResolved = 41,
+    CodAdjustmentRequested = 42,
+    CodAdjustmentApproved = 43,
+    CodAdjustmentRejected = 44,
+    SenderSettlementCreated = 45,
+    SenderSettlementApproved = 46,
+    SenderSettlementPaid = 47,
+    SenderSettlementCancelled = 48,
+    SenderSettlementReversed = 49,
+    CashboxCreated = 50,
+    CashboxUpdated = 51,
+    CashReceiptPosted = 52,
+    CashPaymentPosted = 53,
+    CashVoucherCancelled = 54,
+    CashTransferRequested = 55,
+    CashTransferApproved = 56,
+    CashTransferRejected = 57,
+    CashTransferReceived = 58,
+    CashTransferCancelled = 59,
+    CashboxDayClosed = 60,
+    CashboxClosingApproved = 61,
+    CashboxClosingRejected = 62,
+    BankAccountSaved = 63,
+
+    // Double-entry accounting (step 7). Posted journal entries are themselves immutable records.
+    AccountSaved = 64,
+    AccountDeleted = 65,
+    AccountCategorySaved = 66,
+    AccountingDimensionSaved = 67,
+    FiscalYearCreated = 68,
+    FiscalYearUpdated = 69,
+    FiscalYearDeleted = 70,
+    FiscalYearClosed = 71,
+    AccountingPeriodClosed = 72,
+    AccountingPeriodReopened = 73,
+    JournalEntryCreated = 74,
+    JournalEntryUpdated = 75,
+    JournalEntryDeleted = 76,
+    JournalEntrySubmitted = 77,
+    JournalEntryApproved = 78,
+    JournalEntryRejected = 79,
+    JournalEntryPosted = 80,
+    JournalEntryReversed = 81,
+    PostingRuleSaved = 82,
+    PostingRuleDeleted = 83,
+    PostingEventRetried = 84,
+    BankStatementImported = 85,
+    BankReconciliationSaved = 86,
+    BankReconciliationCompleted = 87,
+    AccountingPeriodUpdated = 88
+}

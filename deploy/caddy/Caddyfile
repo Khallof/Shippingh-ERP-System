@@ -1,0 +1,31 @@
+# Optional HTTPS reverse proxy (docker compose --profile proxy up -d).
+# Caddy obtains and renews a Let's Encrypt certificate for SITE_DOMAIN automatically
+# (ports 80 and 443 must reach this machine and the DNS record must point to it).
+# For a LAN-only server without a public domain use SITE_DOMAIN=localhost or an IP: Caddy then uses its own
+# internal CA (install its root certificate on the clients, see docs/operations/DEPLOYMENT.md).
+{
+	email {$ACME_EMAIL}
+}
+
+{$SITE_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	# Proof-of-delivery uploads.
+	request_body {
+		max_size 12MB
+	}
+
+	reverse_proxy frontend:8080 {
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

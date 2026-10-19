@@ -1,0 +1,13 @@
+<Project>
+  <!-- Shared settings applied automatically to every project in this solution. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <Version>1.0.0</Version>
+    <Company>ShippingERP</Company>
+    <Product>Shipping and Logistics ERP</Product>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,155 @@
+# ShippingERP: SQL Server 2022 + API + web app (nginx), with optional HTTPS proxy (Caddy) and scheduled backups.
+#
+#   1) Copy .env.example to .env and set every value (never commit .env).
+#   2) docker compose up --build -d                      -> http://localhost:8080 (web app), Swagger only if enabled
+#   3) Optional:  docker compose --profile proxy up -d   -> https://SITE_DOMAIN (Caddy, automatic certificates)
+#                 docker compose --profile backup up -d  -> daily SQL + uploads backup into the "backups" volume
+#
+# Every service: restart policy, health check and rotated json logs (max 3 x 10 MB).
+
+name: shippingerp
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: shippingerp-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      # Developer is free for development/testing only. Production: Express (free, 10 GB) or a licensed edition.
+      MSSQL_PID: ${MSSQL_PID:-Developer}
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in the .env file}
+      TZ: ${TZ:-Asia/Damascus}
+    ports:
+      # Bound to this computer only (SSMS / Azure Data Studio). Port 14333 avoids a local SQL Server on 1433.
+      - "127.0.0.1:${SQL_HOST_PORT:-14333}:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+      - backups:/var/opt/mssql/backup
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -C -Q \"SELECT 1\" -b -o /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+    logging: *default-logging
+
+  api:
+    build:
+      context: .
+      dockerfile: src/ShippingERP.API/Dockerfile
+    image: ${API_IMAGE:-shippingerp-api:local}
+    container_name: shippingerp-api
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_HTTP_PORTS: "8080"
+      TZ: ${TZ:-Asia/Damascus}
+      # Double underscore "__" = nested configuration key (ConnectionStrings:DefaultConnection).
+      ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=ShippingERP;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=True;MultipleActiveResultSets=True"
+      Database__ApplyMigrationsOnStartup: ${APPLY_MIGRATIONS_ON_STARTUP:-true}
+      Swagger__Enabled: ${SWAGGER_ENABLED:-false}
+      # The API is reached only through nginx / Caddy: trust their X-Forwarded-* headers (client IP, https).
+      Hosting__UseForwardedHeaders: "true"
+      # Refresh cookie "Secure": browsers accept it on https and on http://localhost. Set false ONLY for a plain-http
+      # LAN test with an IP address (not for production).
+      Jwt__RefreshCookieSecure: ${REFRESH_COOKIE_SECURE:-true}
+      Jwt__SecretKey: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in the .env file (at least 32 random characters)}
+      # Used only on the first start, while no SystemAdmin user exists. Remove the password afterwards.
+      Seed__AdminUserName: ${SEED_ADMIN_USERNAME:-}
+      Seed__AdminEmail: ${SEED_ADMIN_EMAIL:-}
+      Seed__AdminPassword: ${SEED_ADMIN_PASSWORD:-}
+      Serilog__MinimumLevel__Default: ${LOG_LEVEL:-Information}
+    ports:
+      # Direct API access (Swagger, Postman) from this computer only. The browser uses the web app on WEB_PORT.
+      - "127.0.0.1:${API_HOST_PORT:-5080}:8080"
+    volumes:
+      - api-logs:/app/logs
+      # Uploaded files (proof-of-delivery signatures and photos, attachments). Backed up by the "backup" service.
+      - api-uploads:/app/App_Data
+    restart: unless-stopped
+    logging: *default-logging
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_BUSINESS_TIME_ZONE: ${TZ:-Asia/Damascus}
+    image: ${WEB_IMAGE:-shippingerp-web:local}
+    container_name: shippingerp-web
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      API_UPSTREAM: api:8080
+    ports:
+      - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-8080}:8080"
+    restart: unless-stopped
+    logging: *default-logging
+
+  # ---------- Optional: HTTPS reverse proxy (automatic Let's Encrypt certificates) ----------
+  proxy:
+    profiles: ["proxy"]
+    image: caddy:2.8.4-alpine
+    container_name: shippingerp-proxy
+    depends_on:
+      - frontend
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
+      ACME_EMAIL: ${ACME_EMAIL:-admin@example.com}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    logging: *default-logging
+
+  # ---------- Optional: scheduled backups (SQL full backup + uploads archive, with retention) ----------
+  backup:
+    profiles: ["backup"]
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: shippingerp-backup
+    user: "0"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/scripts/backup.sh"]
+    environment:
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+      SQL_HOST: sqlserver
+      DB_NAME: ShippingERP
+      TZ: ${TZ:-Asia/Damascus}
+      BACKUP_TIME: ${BACKUP_TIME:-02:30}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_RUN_ON_START: ${BACKUP_RUN_ON_START:-false}
+    volumes:
+      - ./deploy/backup/backup.sh:/scripts/backup.sh:ro
+      - backups:/backups
+      - api-uploads:/uploads:ro
+    restart: unless-stopped
+    logging: *default-logging
+
+volumes:
+  sqlserver-data:
+  backups:
+  api-logs:
+  api-uploads:
+  caddy-data:
+  caddy-config:

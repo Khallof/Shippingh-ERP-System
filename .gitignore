@@ -1,0 +1,60 @@
+## .NET build output
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ll]og/
+publish/
+artifacts/
+*.nupkg
+*.snupkg
+
+## Visual Studio / Rider / VS Code
+.vs/
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.rsuser
+_ReSharper*/
+*.DotSettings.user
+
+## Test results and coverage
+[Tt]est[Rr]esult*/
+TestResults/
+coverage*.json
+coverage*.xml
+*.coverage
+*.coveragexml
+
+## Application logs (Serilog rolling files)
+logs/
+*.log
+
+## Secrets and local environment files
+.env
+.env.*
+!.env.example
+appsettings.*.local.json
+secrets.json
+
+## OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+## Database files (LocalDB / backups)
+*.mdf
+*.ldf
+*.ndf
+*.bak
+
+## Uploaded files (shipment attachments, proof of delivery) - never commit them
+App_Data/

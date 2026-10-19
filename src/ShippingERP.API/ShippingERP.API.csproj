@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    API layer (composition root): controllers, middleware, Swagger, logging, DI wiring.
+    It references Application (use cases) and Infrastructure (only to register services in Program.cs).
+    Controllers must talk to Application services/interfaces, never directly to AppDbContext.
+  -->
+  <PropertyGroup>
+    <RootNamespace>ShippingERP.API</RootNamespace>
+    <AssemblyName>ShippingERP.API</AssemblyName>
+    <UserSecretsId>shippingerp-api-7f3c2b1e-4d5a-4c8e-9b0f-1a2b3c4d5e6f</UserSecretsId>
+    <!-- XML comments are shown in Swagger. 1591 = "missing XML comment" warning, silenced. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Asp.Versioning.Mvc" Version="8.1.0" />
+    <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="8.1.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.11">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
+    <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
+    <PackageReference Include="Serilog.Enrichers.Thread" Version="4.0.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShippingERP.Application\ShippingERP.Application.csproj" />
+    <ProjectReference Include="..\ShippingERP.Infrastructure\ShippingERP.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
