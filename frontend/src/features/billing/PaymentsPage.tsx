@@ -2,7 +2,10 @@ import { useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { GridValidRowModel } from '@mui/x-data-grid';
 import { useTranslation } from 'react-i18next';
-import type { CustomerPaymentListItemDto } from '@/api/generated';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/api/client';
+import type { CustomerPaymentListItemDto, PaymentMethodDto } from '@/api/generated';
+import type { PagedResult } from '@/api/types';
 import { Permissions as P } from '@/auth/permissions.generated';
 import ResourcePage from '@/components/data/ResourcePage';
 import { col, S } from '@/components/data/columns';
@@ -24,6 +27,14 @@ export default function PaymentsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
+
+  // The reference (transfer / cheque / card receipt number) is asked only for the methods that require it.
+  const methods = useQuery({
+    queryKey: ['/payment-methods', 'payment-form'],
+    queryFn: () => api.get<PagedResult<PaymentMethodDto>>('/payment-methods', { isActive: true, pageSize: 100 })
+  });
+  const needsReference = (methodId: unknown) =>
+    !!methodId && !!methods.data?.items.find((m) => m.id === Number(methodId))?.requiresReference;
 
   const autoOpen = useMemo(() => !!searchParams.get('new'), []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -72,13 +83,19 @@ export default function PaymentsPage() {
             // The payment's currency must be the invoices' currency (empty = the base currency).
             { name: 'currencyId', label: t('common.currency'), type: 'lookup', lookup: 'currencies', helperText: tx('عملة الدين الذي تُسدّده (فارغ = العملة الأساسية). الدفعة تُنقص دين العميل بهذه العملة.', 'Currency of the debt being paid (empty = base). The payment reduces the debt in this currency.') },
             { name: 'paymentDateUtc', label: tx('وقت الدفع', 'Paid at'), type: 'datetime' },
-            { name: 'referenceNumber', label: tx('رقم المرجع (حوالة / شيك)', 'Reference (transfer / cheque)') },
+            {
+              name: 'referenceNumber',
+              label: tx('رقم المرجع (رقم الحوالة / الشيك / إيصال البطاقة)', 'Reference (transfer / cheque / card receipt)'),
+              required: true,
+              hidden: (v) => !needsReference(v.paymentMethodId)
+            },
             { name: 'branchId', label: t('common.branch'), type: 'lookup', lookup: 'branches' },
             { name: 'notes', label: t('common.notes'), type: 'textarea' }
           ],
           toValues: () => ({ customerId: preset.customerId, paymentMethodId: null, amount: preset.amount, currencyId: preset.currencyId, paymentDateUtc: null, referenceNumber: null, branchId: null, notes: null }),
           toRequest: ({ paymentDateUtc, ...values }) => ({
             ...values,
+            referenceNumber: needsReference(values.paymentMethodId) ? values.referenceNumber : null,
             paymentDateUtc: localInputToUtc(paymentDateUtc as string | null),
             autoAllocate: !preset.invoiceId,
             // From an invoice: allocate at most its balance; anything above stays unallocated on the customer's account.

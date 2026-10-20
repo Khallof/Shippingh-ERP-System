@@ -27,8 +27,8 @@ public sealed class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
         builder.Property(x => x.VolumetricWeight).HasPrecision(10, 3);
         builder.Property(x => x.ChargeableWeight).HasPrecision(10, 3);
         builder.Property(x => x.TotalVolumeCbm).HasPrecision(10, 3);
-        builder.Property(x => x.PricingBasis).HasConversion<string>().HasMaxLength(20).IsUnicode(false).HasDefaultValue(PricingBasis.Weight);
-        builder.Property(x => x.ChargesPaidBy).HasConversion<string>().HasMaxLength(20).IsUnicode(false).HasDefaultValue(ChargesPayer.Sender);
+        builder.Property(x => x.PricingBasis).HasConversion<string>().HasMaxLength(20).IsUnicode(false).HasDefaultValue(PricingBasis.Weight).HasSentinel((PricingBasis)0);
+        builder.Property(x => x.ChargesPaidBy).HasConversion<string>().HasMaxLength(20).IsUnicode(false).HasDefaultValue(ChargesPayer.Sender).HasSentinel((ChargesPayer)0);
         builder.Ignore(x => x.PayerCustomerId);
         builder.Property(x => x.UnitPrice).HasPrecision(18, 4);
         builder.Property(x => x.PackageDescription).HasMaxLength(300).IsRequired();
@@ -159,7 +159,7 @@ public sealed class ShipmentPricingSnapshotConfiguration : IEntityTypeConfigurat
         builder.Property(x => x.WeightRoundingStepKg).HasPrecision(6, 3);
         builder.Property(x => x.IncludedWeightKg).HasPrecision(10, 3);
         builder.Property(x => x.AdditionalWeightKg).HasPrecision(10, 3);
-        builder.Property(x => x.PricingBasis).HasConversion<string>().HasMaxLength(20).IsUnicode(false).HasDefaultValue(PricingBasis.Weight);
+        builder.Property(x => x.PricingBasis).HasConversion<string>().HasMaxLength(20).IsUnicode(false).HasDefaultValue(PricingBasis.Weight).HasSentinel((PricingBasis)0);
         builder.Property(x => x.VolumeCbm).HasPrecision(10, 3);
         builder.Property(x => x.WeightTiersJson).HasMaxLength(4000);
         builder.Property(x => x.CodFeePercentage).HasPrecision(5, 2);
