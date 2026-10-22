@@ -35,6 +35,7 @@ public sealed class ShipmentDraft
     public PricingBasis PricingBasis { get; init; } = PricingBasis.Weight;
     public ChargesPayer ChargesPaidBy { get; init; } = ChargesPayer.Sender;
     public decimal? UnitPrice { get; init; }
+    public decimal ExtraFee { get; init; }
     public decimal DeclaredValue { get; init; }
     public decimal InsuranceValue { get; init; }
     public bool IsCod { get; init; }
@@ -352,6 +353,7 @@ public sealed class ShipmentBuilder
                 PricingBasis = request.PricingBasis,
                 VolumeCbm = totalVolumeCbm,
                 UnitPrice = request.UnitPrice,
+                ExtraFee = request.ExtraFee,
                 UnitPriceCurrencyId = request.UnitPrice.HasValue ? request.CurrencyId : null,
                 IsCod = request.IsCOD,
                 CodAmount = codAmount,
@@ -402,6 +404,7 @@ public sealed class ShipmentBuilder
             PricingBasis = request.PricingBasis,
             ChargesPaidBy = request.ChargesPaidBy,
             UnitPrice = request.UnitPrice,
+            ExtraFee = request.ExtraFee,
             DeclaredValue = request.DeclaredValue,
             InsuranceValue = request.InsuranceValue,
             IsCod = request.IsCOD,
@@ -472,6 +475,7 @@ public sealed class ShipmentBuilder
         shipment.PricingBasis = draft.PricingBasis;
         shipment.ChargesPaidBy = draft.ChargesPaidBy;
         shipment.UnitPrice = draft.UnitPrice;
+        shipment.ExtraFee = draft.ExtraFee;
         shipment.DeclaredValue = draft.DeclaredValue;
         shipment.InsuranceValue = draft.InsuranceValue;
         shipment.IsCOD = draft.IsCod;

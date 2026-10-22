@@ -110,6 +110,9 @@ public sealed class PriceBreakdownInput
     public bool IsRemoteArea { get; init; }
     public bool IsReturn { get; init; }
 
+    /// <summary>Step 9: extra service fees typed on the shipment (added to the service fees).</summary>
+    public decimal ExtraFee { get; init; }
+
     /// <summary>Manual shipping subtotal (replaces base + weight + service fees and the contract discount).</summary>
     public decimal? ManualShippingCharge { get; init; }
 
@@ -141,7 +144,9 @@ public sealed class PriceBreakdown
     public decimal PackagingFee { get; init; }
     public decimal RemoteAreaFee { get; init; }
     public decimal ReturnFee { get; init; }
-    public decimal ServiceFeesTotal => PackageFee + InsuranceFee + PickupFee + PackagingFee + RemoteAreaFee + ReturnFee;
+    /// <summary>Step 9: extra service fees typed on the shipment.</summary>
+    public decimal ExtraFee { get; init; }
+    public decimal ServiceFeesTotal => PackageFee + InsuranceFee + PickupFee + PackagingFee + RemoteAreaFee + ReturnFee + ExtraFee;
 
     public decimal CodFeeFixed { get; init; }
     public decimal CodFeePercentage { get; init; }
@@ -206,7 +211,7 @@ public static class PriceBreakdownCalculator
 
         decimal basePrice = 0m, weightCharge = 0m, additionalKg = 0m, volumeCharge = 0m, pricePerCbm = 0m;
         var volume = input.PricingBasis == PricingBasis.Volume ? Math.Max(0m, input.VolumeCbm) : 0m;
-        decimal packageFee = 0m, insuranceFee = 0m, pickupFee = 0m, packagingFee = 0m, remoteAreaFee = 0m, returnFee = 0m;
+        decimal packageFee = 0m, insuranceFee = 0m, pickupFee = 0m, packagingFee = 0m, remoteAreaFee = 0m, returnFee = 0m, extraFee = 0m;
         decimal contractDiscount = 0m, contractDiscountPercentage = 0m;
         IReadOnlyList<WeightTierCharge> tiers = Array.Empty<WeightTierCharge>();
         decimal subtotal;
@@ -239,15 +244,16 @@ public static class PriceBreakdownCalculator
             packagingFee = input.RequiresPackaging ? Round(rule.PackagingFee, decimals) : 0m;
             remoteAreaFee = input.IsRemoteArea ? Round(rule.RemoteAreaFee, decimals) : 0m;
             returnFee = input.IsReturn ? Round(rule.ReturnFee, decimals) : 0m;
+            extraFee = Round(Math.Max(0m, input.ExtraFee), decimals);
 
-            calculatedSubtotal = basePrice + weightCharge + volumeCharge + packageFee + insuranceFee + pickupFee + packagingFee + remoteAreaFee + returnFee;
+            calculatedSubtotal = basePrice + weightCharge + volumeCharge + packageFee + insuranceFee + pickupFee + packagingFee + remoteAreaFee + returnFee + extraFee;
         }
 
         if (input.ManualShippingCharge.HasValue)
         {
             subtotal = Round(input.ManualShippingCharge.Value, decimals);
             basePrice = weightCharge = additionalKg = volumeCharge = pricePerCbm = 0m;
-            packageFee = insuranceFee = pickupFee = packagingFee = remoteAreaFee = returnFee = 0m;
+            packageFee = insuranceFee = pickupFee = packagingFee = remoteAreaFee = returnFee = extraFee = 0m;
             tiers = Array.Empty<WeightTierCharge>();
         }
         else
@@ -278,6 +284,7 @@ public static class PriceBreakdownCalculator
             PickupFee = pickupFee,
             PackagingFee = packagingFee,
             RemoteAreaFee = remoteAreaFee,
+            ExtraFee = extraFee,
             ReturnFee = returnFee,
             CodFeeFixed = rule?.CodFeeFixed ?? 0m,
             CodFeePercentage = rule?.CodFeePercentage ?? 0m,

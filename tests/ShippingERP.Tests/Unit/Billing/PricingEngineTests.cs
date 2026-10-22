@@ -299,5 +299,20 @@ public sealed class PricingEngineTests
 
         Assert.Equal(50m, breakdown.ShippingSubtotal);
     }
-}
 
+    [Fact]
+    public void ExtraFee_IsAddedToTheServiceFees_AndReplacedByAManualCharge()
+    {
+        var rule = Rule(1);
+        rule.WeightTiers.Add(new PriceRuleWeightTier { FromWeightKg = 0m, PricePerKg = 4m });
+
+        var withFee = PriceBreakdownCalculator.Calculate(rule, new PriceBreakdownInput { ChargeableWeight = 10m, PackageCount = 1, ExtraFee = 15m }, 0m, 2);
+        Assert.Equal(15m, withFee.ExtraFee);
+        Assert.Equal(15m, withFee.ServiceFeesTotal);
+        Assert.Equal(55m, withFee.ShippingSubtotal);
+
+        var manual = PriceBreakdownCalculator.Calculate(rule, new PriceBreakdownInput { ChargeableWeight = 10m, PackageCount = 1, ExtraFee = 15m, ManualShippingCharge = 30m }, 0m, 2);
+        Assert.Equal(0m, manual.ExtraFee);
+        Assert.Equal(30m, manual.ShippingSubtotal);
+    }
+}

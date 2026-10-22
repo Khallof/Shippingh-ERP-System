@@ -109,6 +109,8 @@ public sealed class SaveShipmentRequestValidator : AbstractValidator<SaveShipmen
             .When(x => x.ManualShippingCharge.HasValue);
         RuleFor(x => x.CurrencyId).ValidOptionalId("العملة غير صالحة.").When(x => x.CurrencyId.HasValue);
 
+        RuleFor(x => x.ExtraFee).Money("رسوم الخدمات");
+
         RuleFor(x => x.DeclaredValue).Money("القيمة المصرّح بها");
         RuleFor(x => x.InsuranceValue)
             .Money("قيمة التأمين")

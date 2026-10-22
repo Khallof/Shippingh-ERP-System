@@ -46,7 +46,7 @@ public sealed class DemoAccountingSeeder
 
     public async Task<int> SeedAsync(bool force = false, CancellationToken cancellationToken = default)
     {
-        if (!force && (!_options.Enabled || !_options.DemoData))
+        if (!force && (!_options.Enabled || !_options.DemoData || !_options.DemoFinancials))
         {
             return 0;
         }

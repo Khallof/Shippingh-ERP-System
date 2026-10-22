@@ -106,6 +106,7 @@ public static class ShipmentProjections
         PricingBasis = x.PricingBasis,
         ChargesPaidBy = x.ChargesPaidBy,
         UnitPrice = x.UnitPrice,
+        ExtraFee = x.ExtraFee,
         PackageDescription = x.PackageDescription,
 
         CurrencyId = x.CurrencyId,
@@ -209,6 +210,7 @@ public static class ShipmentProjections
         PickupFee = x.PickupFee,
         PackagingFee = x.PackagingFee,
         RemoteAreaFee = x.RemoteAreaFee,
+        ExtraFee = x.ExtraFee,
         ReturnFee = x.ReturnFee,
         ServiceFeesTotal = x.ServiceFeesTotal,
         ShippingSubtotal = x.ShippingSubtotal,

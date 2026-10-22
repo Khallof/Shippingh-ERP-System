@@ -3184,6 +3184,7 @@ export interface SaveShipmentRequest {
   chargesPaidBy?: ChargesPayer;
   unitPrice?: number | null;
   currencyId?: number | null;
+  extraFee?: number;
   declaredValue?: number;
   insuranceValue?: number;
   isCOD?: boolean;
@@ -3514,6 +3515,7 @@ export interface ShipmentDto {
   pricingBasis: PricingBasis;
   chargesPaidBy: ChargesPayer;
   unitPrice: number | null;
+  extraFee: number;
   packageDescription: string;
   currencyId: number;
   currencyCode: string;
@@ -3636,6 +3638,7 @@ export interface ShipmentListQuery extends PagedQuery {
   destinationCityId?: number | null;
   serviceTypeId?: number | null;
   isCOD?: boolean | null;
+  excludeCancelled?: boolean | null;
   createdFromUtc?: string | null;
   createdToUtc?: string | null;
 }
@@ -3714,6 +3717,7 @@ export interface ShipmentPricingDto {
   packagingFee: number;
   remoteAreaFee: number;
   returnFee: number;
+  extraFee: number;
   serviceFeesTotal: number;
   shippingSubtotal: number;
   calculatedShippingSubtotal: number | null;

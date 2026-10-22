@@ -267,6 +267,7 @@ public sealed class ShipmentService : IShipmentService
             shipment.TotalVolumeCbm != draft.TotalVolumeCbm ||
             shipment.PricingBasis != draft.PricingBasis ||
             shipment.UnitPrice != draft.UnitPrice ||
+            shipment.ExtraFee != draft.ExtraFee ||
             shipment.CurrencyId != draft.Pricing.CurrencyId ||
             shipment.CODAmount != draft.CodAmount ||
             shipment.PackageCount != draft.Packages.Count ||
@@ -622,6 +623,11 @@ public sealed class ShipmentService : IShipmentService
         {
             var serviceTypeId = filter.ServiceTypeId.Value;
             query = query.Where(x => x.ServiceTypeId == serviceTypeId);
+        }
+
+        if (filter.ExcludeCancelled == true)
+        {
+            query = query.Where(x => x.Status != ShipmentStatus.Cancelled);
         }
 
         if (filter.IsCOD.HasValue)

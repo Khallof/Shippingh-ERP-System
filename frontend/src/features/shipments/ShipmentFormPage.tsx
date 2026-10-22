@@ -64,7 +64,9 @@ function buildSchema(tx: (ar: string, en: string) => string) {
       declaredValue: money,
       insuranceValue: money,
       isCOD: z.boolean(),
-      codAmount: money,
+      codAmount: z.number().min(0, tx('لا يقبل قيمة سالبة', 'Must not be negative')).nullable(),
+      // Step 9: extra service fees added to the charge.
+      extraFee: z.number().min(0, tx('لا يقبل قيمة سالبة', 'Must not be negative')).nullable(),
       requiresPickup: z.boolean(),
       requiresPackaging: z.boolean(),
       manualShippingCharge: optionalNumber,
@@ -77,7 +79,7 @@ function buildSchema(tx: (ar: string, en: string) => string) {
     })
     .superRefine((v, ctx) => {
       if (v.insuranceValue > v.declaredValue) ctx.addIssue({ code: 'custom', path: ['insuranceValue'], message: tx('لا يزيد عن القيمة المصرّح بها', 'Cannot exceed the declared value') });
-      if (v.isCOD && v.codAmount <= 0) ctx.addIssue({ code: 'custom', path: ['codAmount'], message: tx('مبلغ التحصيل مطلوب', 'COD amount is required') });
+      if (v.isCOD && !(v.codAmount && v.codAmount > 0)) ctx.addIssue({ code: 'custom', path: ['codAmount'], message: tx('مبلغ التحصيل مطلوب', 'COD amount is required') });
       if (v.unitPrice === null && v.manualShippingCharge === null)
         ctx.addIssue({ code: 'custom', path: ['unitPrice'], message: tx('اكتب السعر', 'Enter the price') });
       if (v.currencyId === null && v.manualShippingCharge === null)
@@ -109,7 +111,8 @@ function toRequest(values: Values): SaveShipmentRequest {
     packages: splitPackages(packageCount, totalWeightKg),
     totalVolumeCbm: totalVolumeCbm ?? 0,
     currencyId: values.unitPrice !== null ? values.currencyId : null,
-    codAmount: values.isCOD ? values.codAmount : 0
+    codAmount: values.isCOD ? values.codAmount ?? 0 : 0,
+    extraFee: values.extraFee ?? 0
   };
 }
 
@@ -131,6 +134,7 @@ function fromShipment(shipment: ShipmentDto): Values {
     pricingBasis: shipment.pricingBasis,
     chargesPaidBy: shipment.chargesPaidBy,
     unitPrice: shipment.unitPrice,
+    extraFee: shipment.extraFee > 0 ? shipment.extraFee : null,
     currencyId: shipment.unitPrice !== null ? shipment.currencyId : null,
     declaredValue: shipment.declaredValue,
     insuranceValue: shipment.insuranceValue,
@@ -231,6 +235,7 @@ export default function ShipmentFormPage() {
       chargesPaidBy: 'Recipient',
       unitPrice: null,
       currencyId: null,
+      extraFee: null,
       declaredValue: 0,
       insuranceValue: 0,
       isCOD: false,
@@ -260,6 +265,7 @@ export default function ShipmentFormPage() {
   const totalWeight = watch('totalWeightKg');
   const totalVolume = watch('totalVolumeCbm');
   const quantity = pricingBasis === 'Volume' ? totalVolume : totalWeight;
+  const extraFee = watch('extraFee');
 
   const senderAddresses = useQuery({
     queryKey: ['/customers', senderId, 'addresses'],
@@ -466,9 +472,16 @@ export default function ShipmentFormPage() {
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 4 }}>
+                <TextField
+                  label={tx('رسوم الخدمات', 'Service fees')}
+                  {...numberProps('extraFee')}
+                  helperText={err('extraFee') ?? tx('تغليف، تخزين، أوراق... تُضاف إلى السعر (اختياري)', 'Packing, storage, papers... added to the price (optional)')}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 8 }}>
                 {unitPrice !== null && unitPrice !== undefined && !Number.isNaN(unitPrice) && quantity ? (
                   <Alert severity="info" icon={false} sx={{ py: 0.5 }}>
-                    <span dir="ltr">{formatNumber(quantity, 3)} {pricingBasis === 'Volume' ? 'm³' : 'kg'} × {formatNumber(unitPrice, 2)} = <strong>{formatNumber(quantity * unitPrice, 2)}</strong></span>
+                    <span dir="ltr">{formatNumber(quantity, 3)} {pricingBasis === 'Volume' ? 'm³' : 'kg'} × {formatNumber(unitPrice, 2)}{extraFee ? ` + ${formatNumber(extraFee, 2)}` : ''} = <strong>{formatNumber(quantity * unitPrice + (extraFee || 0), 2)}</strong></span>
                     <Typography variant="caption" component="div" color="text.secondary">{tx('السعر النهائي (مع التقريب والضريبة) يظهر في «احسب السعر»', 'Final price (rounding, tax): "Calculate price"')}</Typography>
                   </Alert>
                 ) : null}

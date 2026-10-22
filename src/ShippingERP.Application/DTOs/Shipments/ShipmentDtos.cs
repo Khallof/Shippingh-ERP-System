@@ -83,6 +83,9 @@ public sealed class SaveShipmentRequest
     /// <summary>Step 9: currency of UnitPrice (e.g. USD per m³, LYD per kg). Null = the base currency.</summary>
     public long? CurrencyId { get; set; }
 
+    /// <summary>Step 9: extra service fees added to the charge (packing, storage, customs papers...).</summary>
+    public decimal ExtraFee { get; set; }
+
     public decimal DeclaredValue { get; set; }
 
     /// <summary>Cannot be more than DeclaredValue.</summary>
@@ -168,6 +171,9 @@ public sealed class ShipmentListQuery : PagedQuery
     public long? ServiceTypeId { get; set; }
 
     public bool? IsCOD { get; set; }
+
+    /// <summary>Step 9: true = hide cancelled (deleted) shipments.</summary>
+    public bool? ExcludeCancelled { get; set; }
 
     /// <summary>Created on or after (UTC).</summary>
     public DateTime? CreatedFromUtc { get; set; }
@@ -338,6 +344,7 @@ public sealed class ShipmentDto
     public PricingBasis PricingBasis { get; init; }
     public ChargesPayer ChargesPaidBy { get; init; }
     public decimal? UnitPrice { get; init; }
+    public decimal ExtraFee { get; init; }
     public string PackageDescription { get; init; } = string.Empty;
 
     public long CurrencyId { get; init; }
@@ -476,6 +483,9 @@ public sealed class ShipmentPricingDto
     public decimal PackagingFee { get; init; }
     public decimal RemoteAreaFee { get; init; }
     public decimal ReturnFee { get; init; }
+
+    /// <summary>Step 9: extra service fees typed on the shipment (part of ServiceFeesTotal).</summary>
+    public decimal ExtraFee { get; init; }
     public decimal ServiceFeesTotal { get; init; }
 
     // Subtotal and discount

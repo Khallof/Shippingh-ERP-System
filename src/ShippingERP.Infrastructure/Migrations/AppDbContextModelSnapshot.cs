@@ -6617,6 +6617,10 @@ namespace ShippingERP.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<decimal>("ExtraFee")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<decimal>("InsuranceValue")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -7268,6 +7272,10 @@ namespace ShippingERP.Infrastructure.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<decimal>("DiscountAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("ExtraFee")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 

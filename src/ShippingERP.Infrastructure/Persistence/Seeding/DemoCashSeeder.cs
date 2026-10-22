@@ -71,7 +71,7 @@ public sealed class DemoCashSeeder
         await _cashboxes.CreateAsync(new CreateCashboxRequest
         {
             Code = "DAM-SYP-01", ArabicName = "صندوق دمشق الرئيسي", EnglishName = "Damascus main cashbox",
-            BranchId = damascus.Value, CurrencyId = syp.Value, OpeningBalance = 500_000m
+            BranchId = damascus.Value, CurrencyId = syp.Value, OpeningBalance = Opening(500_000m)
         }, cancellationToken);
 
         await _cashboxes.CreateAsync(new CreateCashboxRequest
@@ -83,7 +83,7 @@ public sealed class DemoCashSeeder
         await _cashboxes.CreateAsync(new CreateCashboxRequest
         {
             Code = "ALP-SYP-01", ArabicName = "صندوق حلب الرئيسي", EnglishName = "Aleppo main cashbox",
-            BranchId = aleppo.Value, CurrencyId = syp.Value, OpeningBalance = 250_000m
+            BranchId = aleppo.Value, CurrencyId = syp.Value, OpeningBalance = Opening(250_000m)
         }, cancellationToken);
 
         await _bankAccounts.CreateAsync(new SaveBankAccountRequest
@@ -95,4 +95,7 @@ public sealed class DemoCashSeeder
         _logger.LogInformation("Demo cashboxes created (3) and 1 bank account");
         return 4;
     }
+
+    /// <summary>Seed:DemoFinancials = false: the demo cashboxes start empty.</summary>
+    private decimal Opening(decimal amount) => _options.DemoFinancials ? amount : 0m;
 }

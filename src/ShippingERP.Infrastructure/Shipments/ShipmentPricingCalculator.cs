@@ -45,6 +45,9 @@ public sealed class PricingInput
     /// <summary>Step 9: currency of UnitPrice; null = the base currency.</summary>
     public long? UnitPriceCurrencyId { get; init; }
 
+    /// <summary>Step 9: extra service fees typed on the shipment.</summary>
+    public decimal ExtraFee { get; init; }
+
     public bool IsCod { get; init; }
     public decimal CodAmount { get; init; }
     public decimal InsuranceValue { get; init; }
@@ -132,6 +135,7 @@ public sealed class PricingResult
             PickupFee = b.PickupFee,
             PackagingFee = b.PackagingFee,
             RemoteAreaFee = b.RemoteAreaFee,
+            ExtraFee = b.ExtraFee,
             ReturnFee = b.ReturnFee,
             ServiceFeesTotal = b.ServiceFeesTotal,
             CodFeeFixed = b.CodFeeFixed,
@@ -202,6 +206,7 @@ public sealed class PricingResult
         PickupFee = b.PickupFee,
         PackagingFee = b.PackagingFee,
         RemoteAreaFee = b.RemoteAreaFee,
+        ExtraFee = b.ExtraFee,
         ReturnFee = b.ReturnFee,
         ServiceFeesTotal = b.ServiceFeesTotal,
         ShippingSubtotal = b.ShippingSubtotal,
@@ -362,6 +367,7 @@ public sealed class ShipmentPricingCalculator
             RequiresPackaging = input.RequiresPackaging,
             IsRemoteArea = isRemoteArea,
             IsReturn = input.IsReturn,
+            ExtraFee = input.ExtraFee,
             ManualShippingCharge = input.ManualShippingCharge,
             ManualDiscountAmount = input.ManualDiscountAmount
         };
@@ -391,7 +397,8 @@ public sealed class ShipmentPricingCalculator
                     RequiresPickup = breakdownInput.RequiresPickup,
                     RequiresPackaging = breakdownInput.RequiresPackaging,
                     IsRemoteArea = breakdownInput.IsRemoteArea,
-                    IsReturn = breakdownInput.IsReturn
+                    IsReturn = breakdownInput.IsReturn,
+                    ExtraFee = breakdownInput.ExtraFee
                 }, taxPercentage, decimals)
                 : breakdown;
 
@@ -460,6 +467,7 @@ public sealed class ShipmentPricingCalculator
             RequiresPackaging = input.RequiresPackaging,
             IsRemoteArea = isRemoteArea,
             IsReturn = input.IsReturn,
+            ExtraFee = input.ExtraFee,
             ManualDiscountAmount = discount
         };
 

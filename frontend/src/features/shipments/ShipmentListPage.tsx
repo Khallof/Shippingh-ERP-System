@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, InputAdornment, TextField } from '@mui/material';
+import { Button, IconButton, InputAdornment, TextField, Tooltip } from '@mui/material';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AddIcon from '@mui/icons-material/Add';
 import PrintOutlinedIcon from '@mui/icons-material/PrintOutlined';
 import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
@@ -10,6 +11,8 @@ import { openFile } from '@/api/client';
 import { shipmentsApi } from '@/api/endpoints/shipments';
 import type { ShipmentListItemDto } from '@/api/generated';
 import { Can } from '@/auth/guards';
+import { useAuth } from '@/auth/AuthProvider';
+import { ConfirmDialog } from '@/components/common/Dialogs';
 import { Permissions as P } from '@/auth/permissions.generated';
 import PageHeader from '@/components/common/PageHeader';
 import ExportMenu from '@/components/common/ExportMenu';
@@ -26,6 +29,9 @@ import { businessDayEndUtc, businessDayStartUtc } from '@/utils/format';
  * Shipment list: server paging / sorting / search, filters kept in the URL, Excel / PDF export with the same
  * filters, bulk label printing of the selected rows and a scan box that opens a shipment by tracking number.
  */
+/** Shipments that can still be deleted: not yet sent out of the origin branch (same rule as cancelling). */
+const deletableStatuses: string[] = ['Created', 'PickedUp', 'ReceivedAtBranch', 'InWarehouse'];
+
 export default function ShipmentListPage() {
   const { t } = useTranslation();
   const tx = useTx();
@@ -34,12 +40,18 @@ export default function ShipmentListPage() {
   const state = useListState({ defaultSort: 'createdAtUtc' });
   const [selected, setSelected] = useState<number[]>([]);
   const [scan, setScan] = useState('');
+  const [deleting, setDeleting] = useState<ShipmentListItemDto | null>(null);
+  const [busy, setBusy] = useState(false);
+  const { hasPermission } = useAuth();
+  const canDelete = hasPermission(P.Shipments.Cancel);
 
   // The date filters are business days in the URL; the API wants UTC instants.
   const params = useMemo(() => {
     const { createdFrom, createdTo, ...rest } = state.params as Record<string, string | number>;
     return {
       ...rest,
+      // Deleted (cancelled) shipments are hidden unless the "Cancelled" status is chosen in the filter.
+      excludeCancelled: rest.status ? undefined : true,
       createdFromUtc: createdFrom ? businessDayStartUtc(String(createdFrom)) : undefined,
       createdToUtc: createdTo ? businessDayEndUtc(String(createdTo)) : undefined
     };
@@ -59,6 +71,21 @@ export default function ShipmentListPage() {
   ];
 
   const columns: GridColDef<ShipmentListItemDto>[] = [
+    {
+      field: 'actions',
+      headerName: '',
+      width: 60,
+      sortable: false,
+      filterable: false,
+      renderCell: ({ row }) =>
+        canDelete && deletableStatuses.includes(row.status) ? (
+          <Tooltip title={tx('حذف الشحنة', 'Delete shipment')}>
+            <IconButton size="small" color="error" onClick={(event) => { event.stopPropagation(); setDeleting(row); }}>
+              <DeleteOutlineIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        ) : null
+    },
     col.text('trackingNumber', tx('رقم التتبع', 'Tracking no.'), { ...S, minWidth: 150, renderCell: ({ value }) => <span dir="ltr" style={{ fontWeight: 600 }}>{value}</span> }),
     col.text('shipmentNumber', tx('رقم الشحنة', 'Shipment no.'), { ...S, minWidth: 130 }),
     col.status('status', t('common.status'), 'ShipmentStatus', S),
@@ -73,6 +100,21 @@ export default function ShipmentListPage() {
     col.money('totalCharge', tx('الأجور', 'Charges'), 'currencyCode', S),
     col.dateTime('createdAtUtc', tx('تاريخ التسجيل', 'Created'), S)
   ];
+
+  const deleteShipment = async () => {
+    if (!deleting) return;
+    setBusy(true);
+    try {
+      await shipmentsApi.cancel(deleting.id, { reason: tx('حُذفت من قائمة الشحنات', 'Deleted from the shipment list') });
+      notify.success(`${tx('تم حذف الشحنة', 'Shipment deleted')} ${deleting.trackingNumber}`);
+      setDeleting(null);
+      await list.refetch();
+    } catch (error) {
+      notify.error(error);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const printLabels = async () => {
     try {
@@ -133,6 +175,19 @@ export default function ShipmentListPage() {
         rowLink={(row) => `/shipments/${row.id}`}
         checkboxSelection
         onSelectionChange={(ids) => setSelected(ids.map(Number))}
+      />
+      <ConfirmDialog
+        open={!!deleting}
+        danger
+        busy={busy}
+        title={`${tx('حذف الشحنة', 'Delete shipment')} ${deleting?.trackingNumber ?? ''}`}
+        message={tx(
+          'ستُحذف الشحنة من القائمة ويُلغى دينها عن العميل. لا يمكن التراجع عن ذلك. (الشحنة التي سُجّلت عليها دفعة لا يمكن حذفها.)',
+          'The shipment is removed from the list and its debt is cancelled. This cannot be undone. (A shipment with a payment cannot be deleted.)'
+        )}
+        confirmText={tx('حذف', 'Delete')}
+        onConfirm={() => void deleteShipment()}
+        onClose={() => setDeleting(null)}
       />
     </>
   );

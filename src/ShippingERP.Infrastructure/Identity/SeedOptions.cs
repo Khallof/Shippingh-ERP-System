@@ -38,4 +38,11 @@ public sealed class SeedOptions
     /// Set Seed__DemoCustomers=false to start with the demo master data and your own customers.
     /// </summary>
     public bool DemoCustomers { get; set; } = true;
+
+    /// <summary>
+    /// Only used with <see cref="DemoData"/> = true: false = no demo money. The demo cashboxes are created with a zero
+    /// opening balance and the demo journal entries (capital, rent, salaries, fuel bill) are not posted, so the
+    /// financial reports start empty. Set Seed__DemoFinancials=false.
+    /// </summary>
+    public bool DemoFinancials { get; set; } = true;
 }

@@ -108,6 +108,9 @@ public class ShipmentPricingSnapshot : BaseEntity, IAppendOnlyEntity
 
     public decimal ReturnFee { get; set; }
 
+    /// <summary>Step 9: extra service fees typed on the shipment (part of ServiceFeesTotal).</summary>
+    public decimal ExtraFee { get; set; }
+
     public decimal ServiceFeesTotal { get; set; }
 
     // ---------------- COD commission ----------------

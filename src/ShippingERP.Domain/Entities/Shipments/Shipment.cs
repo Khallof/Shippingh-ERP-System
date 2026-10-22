@@ -136,6 +136,9 @@ public class Shipment : BaseEntity
     /// </summary>
     public decimal? UnitPrice { get; set; }
 
+    /// <summary>Step 9: extra service fees typed on the shipment (added to the charge).</summary>
+    public decimal ExtraFee { get; set; }
+
     /// <summary>Step 9: who is invoiced for the shipping charge.</summary>
     public ChargesPayer ChargesPaidBy { get; set; } = ChargesPayer.Sender;
 

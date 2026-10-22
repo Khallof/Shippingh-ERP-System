@@ -351,6 +351,7 @@ public sealed class ShipmentPricingService : IShipmentPricingService
                 // A manual charge (price override) replaces the typed unit price.
                 UnitPrice = manualShippingCharge.HasValue ? null : shipment.UnitPrice,
                 UnitPriceCurrencyId = shipment.UnitPrice.HasValue && !manualShippingCharge.HasValue ? shipment.CurrencyId : null,
+                ExtraFee = shipment.ExtraFee,
                 IsCod = shipment.IsCOD,
                 CodAmount = shipment.CODAmount,
                 InsuranceValue = shipment.InsuranceValue,
