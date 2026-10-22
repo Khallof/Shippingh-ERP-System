@@ -95,6 +95,11 @@ public sealed class ReportExportService : IReportExportService
             info.Add(("الحالة", rows.FirstOrDefault()?.StatusName ?? query.Status.Value.ToString()));
         }
 
+        if (!string.IsNullOrWhiteSpace(query.ConsignmentNumber))
+        {
+            info.Add(("الإرسالية", query.ConsignmentNumber.Trim()));
+        }
+
         if (query.CreatedFromUtc.HasValue || query.CreatedToUtc.HasValue)
         {
             info.Add(("الفترة", $"{Date(query.CreatedFromUtc)} - {Date(query.CreatedToUtc)}"));
@@ -120,8 +125,8 @@ public sealed class ReportExportService : IReportExportService
                         new("هاتف المستلم", ReportColumnKind.Text, 1.2f),
                         new("الفرع الحالي"),
                         new("مدينة الوجهة"),
-                        new("الخدمة"),
-                        new("السائق", ReportColumnKind.Text, 1.2f),
+                        new("نوع البضاعة"),
+                        new("الإرسالية", ReportColumnKind.Text, 0.8f),
                         new("الطرود", ReportColumnKind.Integer, 0.6f),
                         new("الوزن", ReportColumnKind.Number, 0.7f),
                         new("الدفع عند الاستلام", ReportColumnKind.Money),
@@ -133,7 +138,7 @@ public sealed class ReportExportService : IReportExportService
                     Rows = rows.Select(x => new object?[]
                     {
                         x.ShipmentNumber, x.TrackingNumber, x.StatusName, x.SenderName, x.RecipientName, x.RecipientPhone,
-                        x.CurrentBranchName, x.DestinationCityName, x.ServiceTypeName, x.AssignedDriverName, x.PackageCount,
+                        x.CurrentBranchName, x.DestinationCityName, x.ServiceTypeName, x.ConsignmentNumber, x.PackageCount,
                         x.ChargeableWeight, x.IsCOD ? x.CODAmount : null, x.TotalCharge, x.CurrencyCode,
                         Local(x.CreatedAtUtc), x.DeliveredAtUtc.HasValue ? Local(x.DeliveredAtUtc.Value) : null
                     }).ToList(),

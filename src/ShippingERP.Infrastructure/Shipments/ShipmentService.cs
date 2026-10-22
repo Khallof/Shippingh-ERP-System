@@ -30,7 +30,8 @@ public sealed class ShipmentService : IShipmentService
         ["totalCharge"] = x => x.TotalCharge,
         ["codAmount"] = x => x.CODAmount,
         ["chargeableWeight"] = x => x.ChargeableWeight,
-        ["deliveredAtUtc"] = x => x.DeliveredAtUtc
+        ["deliveredAtUtc"] = x => x.DeliveredAtUtc,
+        ["consignmentNumber"] = x => x.ConsignmentNumber
     };
 
     private readonly MasterDataServiceDependencies _dependencies;
@@ -321,6 +322,34 @@ public sealed class ShipmentService : IShipmentService
 
         await _autoBilling.InvoiceAsync(shipment.Id, cancellationToken);
         return await GetByIdAsync(id, cancellationToken);
+    }
+
+    public async Task<int> SetConsignmentAsync(SetConsignmentRequest request, CancellationToken cancellationToken)
+    {
+        var ids = request.ShipmentIds.Distinct().ToList();
+        var visible = await _access.ScopeAsync(Db.Shipments, cancellationToken);
+        List<Shipment> shipments = await visible.Where(x => ids.Contains(x.Id)).ToListAsync(cancellationToken);
+
+        var missing = ids.Count - shipments.Count;
+        if (missing > 0)
+        {
+            throw new NotFoundException($"{missing} من الشحنات المحددة غير موجودة أو لا تملك صلاحية عليها.");
+        }
+
+        var consignment = string.IsNullOrWhiteSpace(request.ConsignmentNumber) ? null : request.ConsignmentNumber.Trim();
+        var changed = 0;
+        foreach (var shipment in shipments.Where(x => x.ConsignmentNumber != consignment))
+        {
+            shipment.ConsignmentNumber = consignment;
+            changed++;
+        }
+
+        _dependencies.AuditLog.Add(
+            AuditAction.ShipmentUpdated,
+            entityName: EntityName,
+            details: new { consignment, count = changed, shipmentNumbers = shipments.Select(x => x.ShipmentNumber).Take(50).ToList() });
+        await Db.SaveChangesAsync(cancellationToken);
+        return changed;
     }
 
     // ------------------------------------------------------------------ status operations
@@ -625,6 +654,18 @@ public sealed class ShipmentService : IShipmentService
             query = query.Where(x => x.ServiceTypeId == serviceTypeId);
         }
 
+        if (!string.IsNullOrWhiteSpace(filter.ConsignmentNumber))
+        {
+            var consignment = filter.ConsignmentNumber.Trim();
+            query = query.Where(x => x.ConsignmentNumber == consignment);
+        }
+
+        if (filter.Ids is { Count: > 0 })
+        {
+            var ids = filter.Ids.Distinct().ToList();
+            query = query.Where(x => ids.Contains(x.Id));
+        }
+
         if (filter.ExcludeCancelled == true)
         {
             query = query.Where(x => x.Status != ShipmentStatus.Cancelled);
@@ -656,6 +697,7 @@ public sealed class ShipmentService : IShipmentService
                 x.TrackingNumber == upper ||
                 x.ShipmentNumber == upper ||
                 x.ExternalReference == search ||
+                x.ConsignmentNumber == search ||
                 x.SenderCustomer.ArabicName.Contains(search) ||
                 x.SenderCustomer.Phone.Contains(search) ||
                 x.RecipientCustomer.ArabicName.Contains(search) ||

@@ -44,6 +44,7 @@ public class ManifestShipmentDto
     public decimal TotalVolumeCbm { get; init; }
     public PricingBasis PricingBasis { get; init; }
     public ChargesPayer ChargesPaidBy { get; init; }
+    public string? ConsignmentNumber { get; init; }
 }
 
 // ------------------------------------------------------------------ warehouse movement manifests

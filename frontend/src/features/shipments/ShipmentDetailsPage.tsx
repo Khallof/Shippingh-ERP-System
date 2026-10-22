@@ -166,6 +166,7 @@ export default function ShipmentDetailsPage() {
                 `${formatQty(s.actualWeight)} ${tx('كغ', 'kg')}`,
                 ...(s.totalVolumeCbm > 0 ? [`${formatQty(s.totalVolumeCbm)} ${tx('م³', 'm³')}`] : [])
               ].join(' · ') },
+              { label: tx('رقم الإرسالية', 'Consignment'), value: s.consignmentNumber ?? '-' },
               { label: tx('طريقة التسعير', 'Pricing basis'), value: enumLabel('PricingBasis', s.pricingBasis, language) },
               { label: tx('أجور الشحن', 'Shipping charges'), value: enumLabel('ChargesPayer', s.chargesPaidBy, language) },
               ...(s.externalReference ? [{ label: tx('المرجع الخارجي', 'External reference'), value: s.externalReference }] : [])

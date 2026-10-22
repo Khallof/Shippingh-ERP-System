@@ -2,17 +2,18 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, IconButton, InputAdornment, TextField, Tooltip } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import AddIcon from '@mui/icons-material/Add';
 import PrintOutlinedIcon from '@mui/icons-material/PrintOutlined';
 import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
 import type { GridColDef } from '@mui/x-data-grid';
 import { useTranslation } from 'react-i18next';
-import { openFile } from '@/api/client';
+import { api, openFile } from '@/api/client';
 import { shipmentsApi } from '@/api/endpoints/shipments';
 import type { ShipmentListItemDto } from '@/api/generated';
 import { Can } from '@/auth/guards';
 import { useAuth } from '@/auth/AuthProvider';
-import { ConfirmDialog } from '@/components/common/Dialogs';
+import { ConfirmDialog, ReasonDialog } from '@/components/common/Dialogs';
 import { Permissions as P } from '@/auth/permissions.generated';
 import PageHeader from '@/components/common/PageHeader';
 import ExportMenu from '@/components/common/ExportMenu';
@@ -41,6 +42,7 @@ export default function ShipmentListPage() {
   const [selected, setSelected] = useState<number[]>([]);
   const [scan, setScan] = useState('');
   const [deleting, setDeleting] = useState<ShipmentListItemDto | null>(null);
+  const [consignmentOpen, setConsignmentOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const { hasPermission } = useAuth();
   const canDelete = hasPermission(P.Shipments.Cancel);
@@ -63,7 +65,7 @@ export default function ShipmentListPage() {
     { name: 'status', label: t('common.status'), type: 'enum', enumName: 'ShipmentStatus' },
     { name: 'branchId', label: t('common.branch'), type: 'lookup', lookup: 'branches' },
     { name: 'senderCustomerId', label: tx('المرسل', 'Sender'), type: 'lookup', lookup: 'senders' },
-    { name: 'driverId', label: t('common.driver'), type: 'lookup', lookup: 'drivers' },
+    { name: 'consignmentNumber', label: tx('رقم الإرسالية', 'Consignment no.'), type: 'text' },
     { name: 'serviceTypeId', label: tx('نوع البضاعة', 'Goods type'), type: 'lookup', lookup: 'serviceTypes' },
     { name: 'isCOD', label: tx('دفع عند الاستلام', 'COD'), type: 'boolean' },
     { name: 'createdFrom', label: t('common.fromDate'), type: 'date' },
@@ -88,18 +90,34 @@ export default function ShipmentListPage() {
     },
     col.text('trackingNumber', tx('رقم التتبع', 'Tracking no.'), { ...S, minWidth: 150, renderCell: ({ value }) => <span dir="ltr" style={{ fontWeight: 600 }}>{value}</span> }),
     col.text('shipmentNumber', tx('رقم الشحنة', 'Shipment no.'), { ...S, minWidth: 130 }),
+    col.text('consignmentNumber', tx('الإرسالية', 'Consignment'), { ...S, minWidth: 100, renderCell: ({ value }) => (value ? `${tx('إرسالية', 'No.')} ${value}` : '-') }),
     col.status('status', t('common.status'), 'ShipmentStatus', S),
     col.text('senderName', tx('المرسل', 'Sender'), { minWidth: 150 }),
     col.text('recipientName', tx('المستلم', 'Recipient'), { minWidth: 150, renderCell: ({ row }) => `${row.recipientName} · ${row.recipientPhone}` }),
     col.text('destinationCityName', tx('مدينة الوجهة', 'Destination'), { minWidth: 110 }),
     col.text('currentBranchName', tx('الفرع الحالي', 'Current branch'), { minWidth: 120 }),
-    col.text('assignedDriverName', t('common.driver'), { minWidth: 120 }),
     col.number('packageCount', tx('طرود', 'Pcs'), 0, { width: 70 }),
     col.number('chargeableWeight', tx('الوزن', 'Weight'), 2, { ...S, width: 90 }),
     col.money('codAmount', tx('مبلغ التحصيل', 'COD'), 'currencyCode', S),
     col.money('totalCharge', tx('الأجور', 'Charges'), 'currencyCode', S),
     col.dateTime('createdAtUtc', tx('تاريخ التسجيل', 'Created'), S)
   ];
+
+  const setConsignment = async (consignmentNumber: string) => {
+    setBusy(true);
+    try {
+      const changed = await api.post<number>('/shipments/consignment', { shipmentIds: selected, consignmentNumber: consignmentNumber.trim() || null });
+      notify.success(consignmentNumber.trim()
+        ? `${tx('أُضيفت إلى الإرسالية', 'Added to consignment')} ${consignmentNumber.trim()}: ${changed}`
+        : `${tx('أُزيلت من الإرسالية', 'Removed from consignment')}: ${changed}`);
+      setConsignmentOpen(false);
+      await list.refetch();
+    } catch (error) {
+      notify.error(error);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const deleteShipment = async () => {
     if (!deleting) return;
@@ -155,6 +173,17 @@ export default function ShipmentListPage() {
             <Button variant="outlined" startIcon={<PrintOutlinedIcon />} disabled={selected.length === 0 || selected.length > 100} onClick={() => void printLabels()}>
               {tx('طباعة الملصقات', 'Print labels')} {selected.length > 0 ? `(${selected.length})` : ''}
             </Button>
+            {selected.length > 0 && (
+              <>
+                {/* Step 9: a file (Excel / PDF) with only the selected shipments, and their consignment number. */}
+                <ExportMenu url="/shipments/export" params={{ ids: selected }} label={`${tx('ملف المحدد', 'Selected to file')} (${selected.length})`} />
+                <Can permission={P.Shipments.Update}>
+                  <Button variant="outlined" startIcon={<Inventory2OutlinedIcon />} onClick={() => setConsignmentOpen(true)}>
+                    {tx('رقم الإرسالية', 'Consignment')} ({selected.length})
+                  </Button>
+                </Can>
+              </>
+            )}
             <ExportMenu url="/shipments/export" params={params} />
             <Can permission={P.Shipments.Create}>
               <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/shipments/new')}>
@@ -175,6 +204,16 @@ export default function ShipmentListPage() {
         rowLink={(row) => `/shipments/${row.id}`}
         checkboxSelection
         onSelectionChange={(ids) => setSelected(ids.map(Number))}
+      />
+      <ReasonDialog
+        open={consignmentOpen}
+        title={`${tx('رقم الإرسالية للشحنات المحددة', 'Consignment of the selected shipments')} (${selected.length})`}
+        label={tx('رقم الإرسالية (مثلاً 1 أو 2). اتركه فارغاً لإزالتها من الإرسالية', 'Consignment number (e.g. 1, 2). Empty = remove')}
+        required={false}
+        busy={busy}
+        confirmText={t('common.save')}
+        onSubmit={(value) => void setConsignment(value)}
+        onClose={() => setConsignmentOpen(false)}
       />
       <ConfirmDialog
         open={!!deleting}

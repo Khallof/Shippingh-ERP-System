@@ -116,6 +116,16 @@ public sealed class ShipmentsController : ApiControllerBase
         return OkResponse(await _shipments.QuoteAsync(request, cancellationToken));
     }
 
+    /// <summary>Step 9: puts the selected shipments in a consignment (رقم الإرسالية) or clears it.</summary>
+    [HttpPost("consignment")]
+    [HasPermission(Permissions.Shipments.Update)]
+    [ProducesResponseType(typeof(ApiResponse<int>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<int>>> SetConsignment([FromBody] SetConsignmentRequest request, CancellationToken cancellationToken)
+    {
+        return OkResponse(await _shipments.SetConsignmentAsync(request, cancellationToken), "تم تحديث رقم الإرسالية");
+    }
+
     /// <summary>Registers a shipment: numbers, packages, weights, price snapshot and the first history row.</summary>
     [HttpPost]
     [HasPermission(Permissions.Shipments.Create)]

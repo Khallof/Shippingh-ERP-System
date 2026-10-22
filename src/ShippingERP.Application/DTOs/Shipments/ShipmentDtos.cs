@@ -86,6 +86,9 @@ public sealed class SaveShipmentRequest
     /// <summary>Step 9: extra service fees added to the charge (packing, storage, customs papers...).</summary>
     public decimal ExtraFee { get; set; }
 
+    /// <summary>Step 9: رقم الإرسالية (consignment / container batch), e.g. "1", "2". Optional.</summary>
+    public string? ConsignmentNumber { get; set; }
+
     public decimal DeclaredValue { get; set; }
 
     /// <summary>Cannot be more than DeclaredValue.</summary>
@@ -131,7 +134,7 @@ public sealed class ShipmentListQuery : PagedQuery
 {
     public static readonly string[] AllowedSortFields =
     {
-        "createdAtUtc", "shipmentNumber", "trackingNumber", "status", "totalCharge", "codAmount", "chargeableWeight", "deliveredAtUtc"
+        "createdAtUtc", "shipmentNumber", "trackingNumber", "status", "totalCharge", "codAmount", "chargeableWeight", "deliveredAtUtc", "consignmentNumber"
     };
 
     /// <summary>Exact tracking number.</summary>
@@ -174,6 +177,12 @@ public sealed class ShipmentListQuery : PagedQuery
 
     /// <summary>Step 9: true = hide cancelled (deleted) shipments.</summary>
     public bool? ExcludeCancelled { get; set; }
+
+    /// <summary>Step 9: only this consignment (رقم الإرسالية, exact match).</summary>
+    public string? ConsignmentNumber { get; set; }
+
+    /// <summary>Step 9: only these shipments (?ids=1&amp;ids=2), e.g. to export the rows selected on screen.</summary>
+    public List<long>? Ids { get; set; }
 
     /// <summary>Created on or after (UTC).</summary>
     public DateTime? CreatedFromUtc { get; set; }
@@ -277,6 +286,7 @@ public sealed class ShipmentListItemDto
     public decimal TotalVolumeCbm { get; init; }
     public PricingBasis PricingBasis { get; init; }
     public ChargesPayer ChargesPaidBy { get; init; }
+    public string? ConsignmentNumber { get; init; }
     public bool IsCOD { get; init; }
     public decimal CODAmount { get; init; }
     public decimal TotalCharge { get; init; }
@@ -343,6 +353,7 @@ public sealed class ShipmentDto
     public decimal TotalVolumeCbm { get; init; }
     public PricingBasis PricingBasis { get; init; }
     public ChargesPayer ChargesPaidBy { get; init; }
+    public string? ConsignmentNumber { get; init; }
     public decimal? UnitPrice { get; init; }
     public decimal ExtraFee { get; init; }
     public string PackageDescription { get; init; } = string.Empty;
@@ -547,4 +558,13 @@ public sealed class ShipmentTrackingEventDto
     public string StatusName { get; init; } = string.Empty;
     public string? BranchName { get; init; }
     public string? Notes { get; init; }
+}
+
+/// <summary>Step 9: POST /shipments/consignment, puts the selected shipments in a consignment (or clears it).</summary>
+public sealed class SetConsignmentRequest
+{
+    public List<long> ShipmentIds { get; set; } = new();
+
+    /// <summary>Empty = remove the shipments from their consignment.</summary>
+    public string? ConsignmentNumber { get; set; }
 }

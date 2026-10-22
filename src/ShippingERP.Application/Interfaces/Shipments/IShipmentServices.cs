@@ -26,6 +26,9 @@ public interface IShipmentService
     /// <summary>Allowed only while the shipment has not left the origin branch (Created ... InWarehouse).</summary>
     Task<ShipmentDto> UpdateAsync(long id, SaveShipmentRequest request, CancellationToken cancellationToken);
 
+    /// <summary>Step 9: puts the shipments in a consignment (رقم الإرسالية), or clears it. Returns how many changed.</summary>
+    Task<int> SetConsignmentAsync(SetConsignmentRequest request, CancellationToken cancellationToken);
+
     /// <summary>Scan-style change: PickedUp, ReceivedAtBranch or InWarehouse.</summary>
     Task<ShipmentDto> ChangeStatusAsync(long id, ChangeShipmentStatusRequest request, CancellationToken cancellationToken);
 

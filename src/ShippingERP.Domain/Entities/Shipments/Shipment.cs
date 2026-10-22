@@ -136,6 +136,9 @@ public class Shipment : BaseEntity
     /// </summary>
     public decimal? UnitPrice { get; set; }
 
+    /// <summary>Step 9: رقم الإرسالية, the consignment / container batch the shipment travels in (e.g. "1", "2").</summary>
+    public string? ConsignmentNumber { get; set; }
+
     /// <summary>Step 9: extra service fees typed on the shipment (added to the charge).</summary>
     public decimal ExtraFee { get; set; }
 

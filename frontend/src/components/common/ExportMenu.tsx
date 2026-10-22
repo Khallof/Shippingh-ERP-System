@@ -14,10 +14,13 @@ interface ExportMenuProps {
   url: string;
   params?: object;
   formats?: ExportFormat[];
+  /** Button text (default "تصدير"). */
+  label?: string;
+  disabled?: boolean;
 }
 
 /** Excel (download) / PDF (opens for printing). Same filters as the screen; the API caps the rows. */
-export default function ExportMenu({ url, params, formats = ['excel', 'pdf'] }: ExportMenuProps) {
+export default function ExportMenu({ url, params, formats = ['excel', 'pdf'], label, disabled }: ExportMenuProps) {
   const { t } = useTranslation();
   const tx = useTx();
   const notify = useNotify();
@@ -43,8 +46,8 @@ export default function ExportMenu({ url, params, formats = ['excel', 'pdf'] }: 
 
   return (
     <>
-      <Button variant="outlined" startIcon={<FileDownloadOutlinedIcon />} disabled={busy} onClick={(event) => setAnchor(event.currentTarget)}>
-        {tx('تصدير', 'Export')}
+      <Button variant="outlined" startIcon={<FileDownloadOutlinedIcon />} disabled={busy || disabled} onClick={(event) => setAnchor(event.currentTarget)}>
+        {label ?? tx('تصدير', 'Export')}
       </Button>
       <Menu anchorEl={anchor} open={!!anchor} onClose={() => setAnchor(null)}>
         {formats.includes('excel') && (

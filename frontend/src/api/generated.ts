@@ -2408,6 +2408,7 @@ export interface ManifestShipmentDto {
   totalVolumeCbm: number;
   pricingBasis: PricingBasis;
   chargesPaidBy: ChargesPayer;
+  consignmentNumber: string | null;
 }
 
 export interface MarkCodReadyRequest {
@@ -3187,6 +3188,7 @@ export interface SaveShipmentRequest {
   unitPrice?: number | null;
   currencyId?: number | null;
   extraFee?: number;
+  consignmentNumber?: string | null;
   declaredValue?: number;
   insuranceValue?: number;
   isCOD?: boolean;
@@ -3415,6 +3417,11 @@ export interface ServiceTypeDto extends MasterDataDto {
 export interface ServiceTypeListQuery extends MasterDataListQuery {
 }
 
+export interface SetConsignmentRequest {
+  shipmentIds?: number[];
+  consignmentNumber?: string | null;
+}
+
 export interface SettlementCandidateDto {
   codTransactionId: number;
   shipmentId: number;
@@ -3516,6 +3523,7 @@ export interface ShipmentDto {
   totalVolumeCbm: number;
   pricingBasis: PricingBasis;
   chargesPaidBy: ChargesPayer;
+  consignmentNumber: string | null;
   unitPrice: number | null;
   extraFee: number;
   packageDescription: string;
@@ -3615,6 +3623,7 @@ export interface ShipmentListItemDto {
   totalVolumeCbm: number;
   pricingBasis: PricingBasis;
   chargesPaidBy: ChargesPayer;
+  consignmentNumber: string | null;
   isCOD: boolean;
   codAmount: number;
   totalCharge: number;
@@ -3641,6 +3650,8 @@ export interface ShipmentListQuery extends PagedQuery {
   serviceTypeId?: number | null;
   isCOD?: boolean | null;
   excludeCancelled?: boolean | null;
+  consignmentNumber?: string | null;
+  ids?: number[] | null;
   createdFromUtc?: string | null;
   createdToUtc?: string | null;
 }

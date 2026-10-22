@@ -40,6 +40,7 @@ public static class ShipmentProjections
         TotalVolumeCbm = x.TotalVolumeCbm,
         PricingBasis = x.PricingBasis,
         ChargesPaidBy = x.ChargesPaidBy,
+        ConsignmentNumber = x.ConsignmentNumber,
         IsCOD = x.IsCOD,
         CODAmount = x.CODAmount,
         TotalCharge = x.TotalCharge,
@@ -105,6 +106,7 @@ public static class ShipmentProjections
         TotalVolumeCbm = x.TotalVolumeCbm,
         PricingBasis = x.PricingBasis,
         ChargesPaidBy = x.ChargesPaidBy,
+        ConsignmentNumber = x.ConsignmentNumber,
         UnitPrice = x.UnitPrice,
         ExtraFee = x.ExtraFee,
         PackageDescription = x.PackageDescription,
@@ -259,6 +261,7 @@ public static class ShipmentProjections
         TotalVolumeCbm = x.TotalVolumeCbm,
         PricingBasis = x.PricingBasis,
         ChargesPaidBy = x.ChargesPaidBy,
+        ConsignmentNumber = x.ConsignmentNumber,
         IsCOD = x.IsCOD,
         CODAmount = x.CODAmount
     };

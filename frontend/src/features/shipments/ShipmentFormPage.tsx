@@ -75,6 +75,8 @@ function buildSchema(tx: (ar: string, en: string) => string) {
       senderNotes: z.string().max(500).nullable(),
       internalNotes: z.string().max(1000).nullable(),
       // Kept as is (no longer shown) so editing an older shipment does not erase it.
+      // Step 9: رقم الإرسالية (consignment), optional.
+      consignmentNumber: z.string().max(30).nullable(),
       externalReference: z.string().max(50).nullable()
     })
     .superRefine((v, ctx) => {
@@ -135,6 +137,7 @@ function fromShipment(shipment: ShipmentDto): Values {
     chargesPaidBy: shipment.chargesPaidBy,
     unitPrice: shipment.unitPrice,
     extraFee: shipment.extraFee > 0 ? shipment.extraFee : null,
+    consignmentNumber: shipment.consignmentNumber,
     currencyId: shipment.unitPrice !== null ? shipment.currencyId : null,
     declaredValue: shipment.declaredValue,
     insuranceValue: shipment.insuranceValue,
@@ -236,6 +239,7 @@ export default function ShipmentFormPage() {
       unitPrice: null,
       currencyId: null,
       extraFee: null,
+      consignmentNumber: null,
       declaredValue: 0,
       insuranceValue: 0,
       isCOD: false,
@@ -407,6 +411,9 @@ export default function ShipmentFormPage() {
               <Grid size={{ xs: 12, md: 4 }}>{lookupField('destinationCityId', tx('مدينة الوجهة', 'Destination city'), 'cities', true, undefined, () => setValue('destinationZoneId', null))}</Grid>
               <Grid size={{ xs: 12, md: 4 }}>{lookupField('destinationZoneId', tx('منطقة الوجهة', 'Destination zone'), 'zones', false, cityId ? { cityId } : undefined)}</Grid>
               <Grid size={{ xs: 12, md: 4 }}>{lookupField('destinationBranchId', tx('فرع الوجهة (اختياري)', 'Destination branch (optional)'), 'branches')}</Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <TextField label={tx('رقم الإرسالية (اختياري)', 'Consignment no. (optional)')} {...register('consignmentNumber', { setValueAs: (v: string) => (v ? v.trim() || null : null) })} error={!!err('consignmentNumber')} helperText={err('consignmentNumber')} />
+              </Grid>
               <Grid size={12}>
                 <FormControlLabel control={<Controller control={control} name="requiresPickup" render={({ field }) => <Checkbox checked={field.value} onChange={(e) => field.onChange(e.target.checked)} />} />} label={tx('استلام من عند المرسل', 'Pickup from sender')} />
                 <FormControlLabel control={<Controller control={control} name="requiresPackaging" render={({ field }) => <Checkbox checked={field.value} onChange={(e) => field.onChange(e.target.checked)} />} />} label={tx('تغليف', 'Packaging')} />

@@ -36,6 +36,7 @@ public sealed class ShipmentDraft
     public ChargesPayer ChargesPaidBy { get; init; } = ChargesPayer.Sender;
     public decimal? UnitPrice { get; init; }
     public decimal ExtraFee { get; init; }
+    public string? ConsignmentNumber { get; init; }
     public decimal DeclaredValue { get; init; }
     public decimal InsuranceValue { get; init; }
     public bool IsCod { get; init; }
@@ -405,6 +406,7 @@ public sealed class ShipmentBuilder
             ChargesPaidBy = request.ChargesPaidBy,
             UnitPrice = request.UnitPrice,
             ExtraFee = request.ExtraFee,
+            ConsignmentNumber = Optional(request.ConsignmentNumber),
             DeclaredValue = request.DeclaredValue,
             InsuranceValue = request.InsuranceValue,
             IsCod = request.IsCOD,
@@ -476,6 +478,7 @@ public sealed class ShipmentBuilder
         shipment.ChargesPaidBy = draft.ChargesPaidBy;
         shipment.UnitPrice = draft.UnitPrice;
         shipment.ExtraFee = draft.ExtraFee;
+        shipment.ConsignmentNumber = draft.ConsignmentNumber;
         shipment.DeclaredValue = draft.DeclaredValue;
         shipment.InsuranceValue = draft.InsuranceValue;
         shipment.IsCOD = draft.IsCod;

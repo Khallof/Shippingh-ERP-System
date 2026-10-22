@@ -31,6 +31,8 @@ public sealed class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
         builder.Property(x => x.ChargesPaidBy).HasConversion<string>().HasMaxLength(20).IsUnicode(false).HasDefaultValue(ChargesPayer.Sender).HasSentinel((ChargesPayer)0);
         builder.Ignore(x => x.PayerCustomerId);
         builder.Property(x => x.UnitPrice).HasPrecision(18, 4);
+        builder.Property(x => x.ConsignmentNumber).HasMaxLength(30);
+        builder.HasIndex(x => x.ConsignmentNumber).HasFilter("[ConsignmentNumber] IS NOT NULL");
         builder.Property(x => x.PackageDescription).HasMaxLength(300).IsRequired();
         builder.Property(x => x.SenderNotes).HasMaxLength(500);
         builder.Property(x => x.InternalNotes).HasMaxLength(1000);

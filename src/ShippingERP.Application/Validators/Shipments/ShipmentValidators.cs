@@ -110,6 +110,7 @@ public sealed class SaveShipmentRequestValidator : AbstractValidator<SaveShipmen
         RuleFor(x => x.CurrencyId).ValidOptionalId("العملة غير صالحة.").When(x => x.CurrencyId.HasValue);
 
         RuleFor(x => x.ExtraFee).Money("رسوم الخدمات");
+        RuleFor(x => x.ConsignmentNumber).OptionalText(30);
 
         RuleFor(x => x.DeclaredValue).Money("القيمة المصرّح بها");
         RuleFor(x => x.InsuranceValue)
@@ -155,6 +156,11 @@ public sealed class ShipmentListQueryValidator : AbstractValidator<ShipmentListQ
         RuleFor(x => x.ShipmentNumber).OptionalText(40);
         RuleFor(x => x.Sender).OptionalText(100);
         RuleFor(x => x.Recipient).OptionalText(100);
+        RuleFor(x => x.ConsignmentNumber).OptionalText(30);
+        RuleFor(x => x.Ids)
+            .Must(ids => ids!.Count <= SetConsignmentRequestValidator.MaxShipments)
+            .WithMessage($"الحد الأقصى {SetConsignmentRequestValidator.MaxShipments} شحنة.")
+            .When(x => x.Ids is not null);
         RuleFor(x => x.Status).IsInEnum().WithMessage("حالة الشحنة غير صالحة.").When(x => x.Status.HasValue);
         RuleFor(x => x.CreatedToUtc)
             .GreaterThan(x => x.CreatedFromUtc!.Value).WithMessage("تاريخ النهاية يجب أن يكون بعد تاريخ البداية.")
@@ -324,5 +330,18 @@ public sealed class SaveShippingSettingsRequestValidator : AbstractValidator<Sav
         var sample = template.Replace("{trackingNumber}", "SE0000000000", StringComparison.Ordinal);
         return Uri.TryCreate(sample, UriKind.Absolute, out var uri) &&
                (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp);
+    }
+}
+
+public sealed class SetConsignmentRequestValidator : AbstractValidator<SetConsignmentRequest>
+{
+    public const int MaxShipments = 1000;
+
+    public SetConsignmentRequestValidator()
+    {
+        RuleFor(x => x.ShipmentIds)
+            .NotEmpty().WithMessage("اختر شحنة واحدة على الأقل.")
+            .Must(ids => ids.Count <= MaxShipments).WithMessage($"الحد الأقصى {MaxShipments} شحنة في المرة الواحدة.");
+        RuleFor(x => x.ConsignmentNumber).OptionalText(30);
     }
 }

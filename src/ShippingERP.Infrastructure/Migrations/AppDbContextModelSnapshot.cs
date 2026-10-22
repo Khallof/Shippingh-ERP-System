@@ -6586,6 +6586,10 @@ namespace ShippingERP.Infrastructure.Migrations
                         .HasColumnType("varchar(20)")
                         .HasDefaultValue("Sender");
 
+                    b.Property<string>("ConsignmentNumber")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -6760,6 +6764,9 @@ namespace ShippingERP.Infrastructure.Migrations
                         .HasColumnType("decimal(10,3)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ConsignmentNumber")
+                        .HasFilter("[ConsignmentNumber] IS NOT NULL");
 
                     b.HasIndex("CreatedAtUtc");
 
