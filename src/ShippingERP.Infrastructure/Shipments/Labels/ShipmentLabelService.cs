@@ -56,7 +56,12 @@ public sealed class ShipmentLabelService : IShipmentLabelService
     private async Task<FileDownload> RenderAsync(IReadOnlyList<ShipmentLabelData> labels, LabelFormat format, string fileName, CancellationToken cancellationToken)
     {
         var settings = await _settings.GetEffectiveAsync(cancellationToken);
-        var options = new LabelOptions(settings.LabelWidthMm, settings.LabelHeightMm, settings.TrackingUrlTemplate);
+        // Step 9: the company logo is printed in the label header.
+        var logo = await _dbContext.CompanyProfiles.AsNoTracking()
+            .OrderBy(x => x.Id)
+            .Select(x => new { x.LogoImage, x.LogoContentType })
+            .FirstOrDefaultAsync(cancellationToken);
+        var options = new LabelOptions(settings.LabelWidthMm, settings.LabelHeightMm, settings.TrackingUrlTemplate, logo?.LogoImage, logo?.LogoContentType);
 
         if (format == LabelFormat.Html)
         {

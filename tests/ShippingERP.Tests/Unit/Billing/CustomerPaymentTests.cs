@@ -180,4 +180,31 @@ public sealed class CustomerPaymentTests : IAsyncLifetime
         Assert.Equal(payment.Payment.Id, (await _context.UseAsync<ICustomerPaymentService, CustomerPaymentDto>(s =>
             s.GetByIdAsync(payment.Payment.Id, CancellationToken.None))).Id);
     }
+
+    [Fact]
+    public async Task Receipt_IsAPdf_WithTheLogoWhenThereIsOne()
+    {
+        // A tiny valid PNG as the company logo (the profile is created by the demo data).
+        await _context.QueryAsync(async db =>
+        {
+            var profile = await db.CompanyProfiles.FirstAsync();
+            profile.LogoImage = ShipmentTestData.PngBytes;
+            profile.LogoContentType = "image/png";
+            return await db.SaveChangesAsync();
+        });
+
+        var invoice = await IssuedInvoiceAsync();
+        var payment = await BillingTestData.PayAsync(_context, invoice.CustomerId, 6000m, allocations: new[] { (invoice.Id, 6000m) });
+
+        var pdf = await _context.UseAsync<ICustomerPaymentService, ShippingERP.Application.Common.Files.FileDownload>(
+            s => s.GetReceiptPdfAsync(payment.Payment.Id, CancellationToken.None));
+
+        Assert.Equal("application/pdf", pdf.ContentType);
+        Assert.Equal($"{payment.Payment.PaymentNumber}.pdf", pdf.FileName);
+        var header = new byte[4];
+        await using var stream = pdf.Content;
+        Assert.Equal(4, await stream.ReadAsync(header));
+        Assert.Equal("%PDF", System.Text.Encoding.ASCII.GetString(header));
+    }
 }
+

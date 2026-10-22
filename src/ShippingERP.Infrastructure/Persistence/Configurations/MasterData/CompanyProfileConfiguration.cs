@@ -19,6 +19,7 @@ public sealed class CompanyProfileConfiguration : IEntityTypeConfiguration<Compa
         builder.Property(x => x.Website).HasMaxLength(200);
         builder.Property(x => x.Address).HasMaxLength(300);
         builder.Property(x => x.LogoUrl).HasMaxLength(500);
+        builder.Property(x => x.LogoContentType).HasMaxLength(50).IsUnicode(false);
 
         builder.HasOne(x => x.BaseCurrency)
             .WithMany()

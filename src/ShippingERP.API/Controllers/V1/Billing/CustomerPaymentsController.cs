@@ -88,4 +88,14 @@ public sealed class CustomerPaymentsController : ApiControllerBase
     {
         return OkResponse(await _payments.AllocateAsync(id, request, cancellationToken), "تم تخصيص الدفعة");
     }
+
+    /// <summary>Step 9: the printable receipt of the payment (PDF with the company logo).</summary>
+    [HttpGet("{id:long}/pdf")]
+    [Produces("application/pdf", "application/json")]
+    [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Pdf(long id, CancellationToken cancellationToken)
+    {
+        return FileDownloadResult(await _payments.GetReceiptPdfAsync(id, cancellationToken));
+    }
 }

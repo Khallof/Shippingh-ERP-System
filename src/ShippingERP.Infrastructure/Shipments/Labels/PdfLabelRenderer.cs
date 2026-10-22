@@ -3,6 +3,7 @@ using QuestPDF.Drawing;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using ShippingERP.Infrastructure.Billing;
 
 namespace ShippingERP.Infrastructure.Shipments.Labels;
 
@@ -68,6 +69,7 @@ public sealed class PdfLabelRenderer
         // Header: company + service type.
         column.Item().Row(row =>
         {
+            DocumentLogo.Add(row, options.Logo, 9 * scale);
             row.RelativeItem().AlignMiddle().Text(LabelText.Clip(label.CompanyName, 40)).Bold().FontSize(9 * scale);
             row.AutoItem().Border(0.8f).PaddingHorizontal(2, Unit.Millimetre).AlignMiddle()
                 .Text(LabelText.Clip(label.ServiceTypeName, 20)).Bold().FontSize(9 * scale);

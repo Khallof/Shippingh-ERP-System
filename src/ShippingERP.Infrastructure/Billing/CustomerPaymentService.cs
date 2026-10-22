@@ -1,17 +1,19 @@
 using System.Globalization;
 using System.Linq.Expressions;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using ShippingERP.Application.Common.Exceptions;
+using ShippingERP.Application.Common.Files;
 using ShippingERP.Application.Common.Models;
 using ShippingERP.Application.DTOs.Billing;
-using ShippingERP.Application.Interfaces.Billing;
 using ShippingERP.Application.IntegrationEvents;
+using ShippingERP.Application.Interfaces.Billing;
 using ShippingERP.Domain.Billing;
 using ShippingERP.Domain.Entities.Billing;
 using ShippingERP.Domain.Enums;
+using ShippingERP.Infrastructure.Cash;
 using ShippingERP.Infrastructure.MasterData;
 using ShippingERP.Infrastructure.Persistence;
 using ShippingERP.Infrastructure.Shipments;
@@ -52,13 +54,44 @@ public sealed class CustomerPaymentService : ICustomerPaymentService
         BillingAccess access,
         DocumentNumberGenerator numbers,
         CustomerLedger ledger,
-        IIntegrationEventPublisher events)
+        IIntegrationEventPublisher events,
+        CashDocumentPdfRenderer pdf)
     {
         _dependencies = dependencies;
         _access = access;
         _numbers = numbers;
         _ledger = ledger;
         _events = events;
+        _pdf = pdf;
+    }
+
+    private readonly CashDocumentPdfRenderer _pdf;
+
+    // ------------------------------------------------------------------ receipt (step 9)
+
+    public async Task<FileDownload> GetReceiptPdfAsync(long paymentId, CancellationToken cancellationToken)
+    {
+        var payment = await GetByIdAsync(paymentId, cancellationToken);
+        var company = await CashDocumentPdfRenderer.LoadCompanyAsync(Db, cancellationToken);
+        var currency = await Db.Currencies.AsNoTracking().IgnoreQueryFilters()
+            .Where(x => x.Id == payment.CurrencyId)
+            .Select(x => new { x.ArabicName, x.DecimalPlaces })
+            .FirstAsync(cancellationToken);
+
+        // What the customer still owes in this currency (sub-ledger, plus the opening balance for the base currency).
+        var customerId = payment.CustomerId;
+        var currencyId = payment.CurrencyId;
+        var remaining = await Db.CustomerAccountTransactions.AsNoTracking()
+            .Where(x => x.CustomerId == customerId && x.CurrencyId == currencyId)
+            .SumAsync(x => x.Debit - x.Credit, cancellationToken);
+        var baseCurrency = await _access.GetBaseCurrencyAsync(cancellationToken);
+        if (baseCurrency.Id == currencyId)
+        {
+            remaining += await Db.Customers.AsNoTracking().Where(x => x.Id == customerId).Select(x => x.OpeningBalance).FirstOrDefaultAsync(cancellationToken);
+        }
+
+        var bytes = _pdf.RenderCustomerPayment(payment, company, currency.ArabicName, currency.DecimalPlaces, remaining);
+        return FileDownload.FromBytes(bytes, "application/pdf", $"{payment.PaymentNumber}.pdf");
     }
 
     private AppDbContext Db => _dependencies.DbContext;

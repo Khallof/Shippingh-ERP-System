@@ -12,6 +12,12 @@ public sealed class CompanyProfileDto
     public string? Website { get; init; }
     public string? Address { get; init; }
     public string? LogoUrl { get; init; }
+
+    /// <summary>Step 9: a logo was uploaded (GET /api/v1/company-profile/logo returns it).</summary>
+    public bool HasLogo { get; init; }
+
+    /// <summary>Changes when the logo changes; append it to the logo URL so the browser reloads it.</summary>
+    public long LogoVersion { get; init; }
     public long BaseCurrencyId { get; init; }
     public string BaseCurrencyCode { get; init; } = string.Empty;
     public DateTime CreatedAtUtc { get; init; }

@@ -12,6 +12,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
+import CompanyLogo from '@/components/common/CompanyLogo';
 import { api } from '@/api/client';
 import type { CompanyProfileDto } from '@/api/generated';
 import { navigation } from '@/app/navigation';
@@ -80,7 +81,7 @@ export default function AppLayout() {
   const drawer = (
     <>
       <Toolbar sx={{ gap: 1 }}>
-        <Box component="img" src="/favicon.svg" alt="" sx={{ width: 32, height: 32 }} />
+        <CompanyLogo key={companyProfile.data?.logoVersion ?? 0} version={companyProfile.data?.logoVersion} size={36} />
         <Typography variant="h6" noWrap>
           {t('app.name')}
         </Typography>

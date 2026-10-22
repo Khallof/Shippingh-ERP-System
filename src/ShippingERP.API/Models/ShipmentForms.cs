@@ -30,6 +30,13 @@ public sealed class ImportShipmentsForm : ImportShipmentsRequest
     public IFormFile? File { get; set; }
 }
 
+/// <summary>PUT /api/v1/company-profile/logo (multipart/form-data).</summary>
+public sealed class CompanyLogoForm
+{
+    /// <summary>PNG or JPG, max 1 MB.</summary>
+    public IFormFile? File { get; set; }
+}
+
 public static class FormFileExtensions
 {
     /// <summary>IFormFile -> UploadedFile (the Application layer does not know ASP.NET Core).</summary>

@@ -873,7 +873,7 @@ public sealed class InvoiceService : IInvoiceService
     {
         var invoice = await GetByIdAsync(id, cancellationToken);
         var company = await Db.CompanyProfiles.AsNoTracking()
-            .Select(x => new InvoiceCompanyInfo(x.ArabicName, x.EnglishName, x.TaxNumber, x.CommercialRegistrationNumber, x.Phone, x.Email, x.Address))
+            .Select(x => new InvoiceCompanyInfo(x.ArabicName, x.EnglishName, x.TaxNumber, x.CommercialRegistrationNumber, x.Phone, x.Email, x.Address, x.LogoImage))
             .FirstOrDefaultAsync(cancellationToken)
             ?? new InvoiceCompanyInfo("شركة الشحن", null, null, null, null, null, null);
 

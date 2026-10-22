@@ -1103,6 +1103,8 @@ export interface CompanyProfileDto {
   website: string | null;
   address: string | null;
   logoUrl: string | null;
+  hasLogo: boolean;
+  logoVersion: number;
   baseCurrencyId: number;
   baseCurrencyCode: string;
   createdAtUtc: string;

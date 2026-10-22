@@ -3,7 +3,10 @@ import { useSearchParams } from 'react-router-dom';
 import type { GridValidRowModel } from '@mui/x-data-grid';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/api/client';
+import { IconButton, Tooltip } from '@mui/material';
+import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
+import { api, openFile } from '@/api/client';
+import { useNotify } from '@/components/common/Notifier';
 import type { CustomerPaymentListItemDto, PaymentMethodDto } from '@/api/generated';
 import type { PagedResult } from '@/api/types';
 import { Permissions as P } from '@/auth/permissions.generated';
@@ -21,6 +24,7 @@ type Row = CustomerPaymentListItemDto & GridValidRowModel;
 export default function PaymentsPage() {
   const { t } = useTranslation();
   const tx = useTx();
+  const notify = useNotify();
   const [searchParams, setSearchParams] = useSearchParams();
   const preset = useMemo(
     () => ({ customerId: Number(searchParams.get('customerId')) || null, invoiceId: Number(searchParams.get('invoiceId')) || null, amount: Number(searchParams.get('amount')) || null, currencyId: Number(searchParams.get('currencyId')) || null }),
@@ -57,6 +61,17 @@ export default function PaymentsPage() {
         autoOpenCreate: autoOpen,
         defaultSort: 'paymentDateUtc',
         createLabel: tx('دفعة جديدة', 'New payment'),
+        // Step 9: printable receipt with the company logo.
+        rowActions: (row) => (
+          <Tooltip title={tx('طباعة الإيصال', 'Print receipt')}>
+            <IconButton size="small" onClick={async (event) => {
+              event.stopPropagation();
+              try { openFile(await api.download(`/customer-payments/${row.id}/pdf`, { fallbackName: `${row.paymentNumber}.pdf` })); } catch (e) { notify.error(e); }
+            }}>
+              <ReceiptLongOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        ),
         columns: [
           col.text('paymentNumber', tx('الرقم', 'Number'), { ...S, minWidth: 130 }),
           col.dateTime('paymentDateUtc', t('common.date'), S),

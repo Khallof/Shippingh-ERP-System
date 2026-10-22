@@ -62,7 +62,7 @@ public sealed class ShipmentLabelData
 public sealed record ShipmentLabelPackage(int SequenceNumber, string PackageBarcode, decimal WeightKg);
 
 /// <summary>Label size and QR content, from the shipping settings.</summary>
-public sealed record LabelOptions(int WidthMm, int HeightMm, string? TrackingUrlTemplate)
+public sealed record LabelOptions(int WidthMm, int HeightMm, string? TrackingUrlTemplate, byte[]? Logo = null, string? LogoContentType = null)
 {
     /// <summary>What the QR code contains: the tracking page URL when configured, otherwise the tracking number.</summary>
     public string QrContent(string trackingNumber) =>

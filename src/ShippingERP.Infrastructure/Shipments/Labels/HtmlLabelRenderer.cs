@@ -30,6 +30,7 @@ public sealed class HtmlLabelRenderer
         html.Append(".box{border:1px solid #000;padding:1.5mm}.thin{border-width:.5px}");
         html.Append(".b{font-weight:700}.small{font-size:").Append(Pt(7)).Append('}');
         html.Append(".service{border:1px solid #000;padding:0 2mm;font-weight:700}");
+        html.Append(".logo{height:9mm;max-width:20mm;object-fit:contain;vertical-align:middle;margin-inline-end:1.5mm}");
         html.Append(".barcode{height:").Append((options.HeightMm * 0.11f).ToString("0.##", CultureInfo.InvariantCulture)).Append("mm;flex:none}.barcode svg{width:100%;height:100%}");
         html.Append(".tracking{text-align:center;font-weight:700;letter-spacing:.08em;direction:ltr;font-size:").Append(Pt(13)).Append('}');
         html.Append(".recipient{display:flex;gap:2mm}.recipient .info{flex:1}.name{font-weight:700;font-size:").Append(Pt(11)).Append('}');
@@ -51,7 +52,15 @@ public sealed class HtmlLabelRenderer
             {
                 html.Append("<section class=\"label\">");
 
-                html.Append("<div class=\"row\"><span class=\"b\">").Append(Encode(LabelText.Clip(label.CompanyName, 40)))
+                html.Append("<div class=\"row\"><span class=\"b\">");
+                if (options.Logo is { Length: > 0 })
+                {
+                    // Step 9: the company logo before the name (embedded, so the printout needs no network).
+                    html.Append("<img class=\"logo\" alt=\"\" src=\"data:").Append(options.LogoContentType ?? "image/png").Append(";base64,")
+                        .Append(Convert.ToBase64String(options.Logo)).Append("\"/> ");
+                }
+
+                html.Append(Encode(LabelText.Clip(label.CompanyName, 40)))
                     .Append("</span><span class=\"service\">").Append(Encode(LabelText.Clip(label.ServiceTypeName, 20))).Append("</span></div>");
 
                 html.Append("<div class=\"barcode\">").Append(barcode).Append("</div>");

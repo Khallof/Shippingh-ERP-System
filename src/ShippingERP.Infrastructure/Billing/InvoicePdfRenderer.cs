@@ -15,7 +15,24 @@ public sealed record InvoiceCompanyInfo(
     string? CommercialRegistrationNumber,
     string? Phone,
     string? Email,
-    string? Address);
+    string? Address,
+    byte[]? Logo = null);
+
+/// <summary>Step 9: the company logo at the start of every document header (nothing when there is no logo).</summary>
+public static class DocumentLogo
+{
+    /// <summary>Adds the logo as a fixed-size item of a header row (no item at all without a logo).</summary>
+    public static void Add(RowDescriptor row, byte[]? logo, float sizeMm)
+    {
+        if (logo is null || logo.Length == 0)
+        {
+            return;
+        }
+
+        row.ConstantItem(sizeMm, Unit.Millimetre).Height(sizeMm, Unit.Millimetre).AlignMiddle().Image(logo).FitArea();
+        row.ConstantItem(3, Unit.Millimetre);
+    }
+}
 
 /// <summary>
 /// Printable A4 invoice (QuestPDF, embedded Cairo font, right-to-left). Contains the company and customer data,
@@ -58,6 +75,7 @@ public sealed class InvoicePdfRenderer
                 {
                     header.Item().Row(row =>
                     {
+                        DocumentLogo.Add(row, company.Logo, 26);
                         row.RelativeItem().Column(c =>
                         {
                             c.Item().Text(company.ArabicName).Bold().FontSize(15);

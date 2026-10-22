@@ -200,6 +200,7 @@ public sealed class ReportFileRenderer
                 {
                     header.Item().Row(row =>
                     {
+                        DocumentLogo.Add(row, company.Logo, 16);
                         row.RelativeItem().Column(c =>
                         {
                             c.Item().Text(company.ArabicName).Bold().FontSize(12);

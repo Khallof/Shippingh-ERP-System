@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, Button, Grid2 as Grid, Typography } from '@mui/material';
+import { Alert, Button, Grid2 as Grid, Stack, Typography } from '@mui/material';
+import CompanyLogo from '@/components/common/CompanyLogo';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
@@ -45,6 +46,64 @@ function SettingsForm({ title, url, fields, data, loading, notice, canEdit }: { 
   );
 }
 
+/** Step 9: upload / replace / remove the company logo (printed on every document, shown in the app). */
+function LogoSection({ profile, canEdit }: { profile: CompanyProfileDto | undefined; canEdit: boolean }) {
+  const tx = useTx();
+  const notify = useNotify();
+  const queryClient = useQueryClient();
+  const [busy, setBusy] = useState(false);
+
+  const run = async (action: () => Promise<unknown>, done: string) => {
+    setBusy(true);
+    try {
+      await action();
+      notify.success(done);
+      await queryClient.invalidateQueries({ queryKey: ['/company-profile'] });
+    } catch (error) {
+      notify.error(error);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const upload = (file: File | undefined) => {
+    if (!file) return;
+    const form = new FormData();
+    form.append('file', file);
+    void run(() => api.putForm('/company-profile/logo', form), tx('تم حفظ الشعار', 'Logo saved'));
+  };
+
+  return (
+    <Section title={tx('شعار الشركة (يظهر في البرنامج وعلى كل الإيصالات والفواتير والملصقات)', 'Company logo (app, receipts, invoices, labels)')}>
+      {!profile ? (
+        <Alert severity="info">{tx('احفظ بيانات الشركة أولاً، ثم ارفع الشعار.', 'Save the company profile first, then upload the logo.')}</Alert>
+      ) : (
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} sx={{ alignItems: { sm: 'center' } }}>
+          <Stack sx={{ width: 220, height: 120, border: 1, borderColor: 'divider', borderRadius: 2, alignItems: 'center', justifyContent: 'center', bgcolor: '#fff' }}>
+            {profile.hasLogo
+              ? <CompanyLogo key={profile.logoVersion} version={profile.logoVersion} size={100} sx={{ maxWidth: 200 }} />
+              : <Typography color="text.secondary">{tx('لا يوجد شعار', 'No logo')}</Typography>}
+          </Stack>
+          {canEdit && (
+            <Stack spacing={1}>
+              <Button variant="contained" component="label" disabled={busy}>
+                {profile.hasLogo ? tx('تغيير الشعار', 'Change logo') : tx('رفع الشعار', 'Upload logo')}
+                <input hidden type="file" accept="image/png,image/jpeg" onChange={(event) => { upload(event.target.files?.[0]); event.target.value = ''; }} />
+              </Button>
+              {profile.hasLogo && (
+                <Button color="error" disabled={busy} onClick={() => void run(() => api.delete('/company-profile/logo'), tx('تم حذف الشعار', 'Logo removed'))}>
+                  {tx('حذف الشعار', 'Remove logo')}
+                </Button>
+              )}
+              <Typography variant="caption" color="text.secondary">{tx('PNG أو JPG، حتى 1 ميغابايت. يُفضّل خلفية بيضاء أو شفافة.', 'PNG or JPG up to 1 MB; white or transparent background.')}</Typography>
+            </Stack>
+          )}
+        </Stack>
+      )}
+    </Section>
+  );
+}
+
 /** Company profile (header of every PDF), shipping settings (labels, volumetric divisor, approvals) and UI preferences. */
 export default function SettingsPage() {
   const { t } = useTranslation();
@@ -70,9 +129,9 @@ export default function SettingsPage() {
         { name: 'phone', label: tx('الهاتف', 'Phone'), span: 4 },
         { name: 'email', label: tx('البريد', 'E-mail'), type: 'email', span: 4 },
         { name: 'website', label: tx('الموقع', 'Website'), span: 4 },
-        { name: 'address', label: tx('العنوان', 'Address'), span: 8 },
-        { name: 'logoUrl', label: tx('رابط الشعار', 'Logo URL'), span: 4 }
+        { name: 'address', label: tx('العنوان', 'Address'), span: 8 }
       ]} />
+      <LogoSection profile={company.data} canEdit={canEdit} />
       <SettingsForm title={tx('إعدادات الشحن والملصقات', 'Shipping and label settings')} url="/shipping-settings" data={shipping.data} loading={shipping.isLoading} canEdit={canEdit} fields={[
         { name: 'trackingNumberPrefix', label: tx('بادئة رقم التتبع', 'Tracking prefix'), required: true, span: 3 },
         { name: 'volumetricDivisor', label: tx('معامل الوزن الحجمي', 'Volumetric divisor'), type: 'integer', required: true, span: 3 },

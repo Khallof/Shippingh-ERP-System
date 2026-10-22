@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using ShippingERP.Application.DTOs.Billing;
 using ShippingERP.Application.DTOs.Cash;
 using ShippingERP.Application.DTOs.Cod;
 using ShippingERP.Domain.Cod;
@@ -37,7 +38,7 @@ public sealed class CashDocumentPdfRenderer
 
     public static async Task<InvoiceCompanyInfo> LoadCompanyAsync(AppDbContext dbContext, CancellationToken cancellationToken) =>
         await dbContext.CompanyProfiles.AsNoTracking()
-            .Select(x => new InvoiceCompanyInfo(x.ArabicName, x.EnglishName, x.TaxNumber, x.CommercialRegistrationNumber, x.Phone, x.Email, x.Address))
+            .Select(x => new InvoiceCompanyInfo(x.ArabicName, x.EnglishName, x.TaxNumber, x.CommercialRegistrationNumber, x.Phone, x.Email, x.Address, x.LogoImage))
             .FirstOrDefaultAsync(cancellationToken)
         ?? new InvoiceCompanyInfo("شركة الشحن", null, null, null, null, null, null);
 
@@ -163,6 +164,110 @@ public sealed class CashDocumentPdfRenderer
 
                     var deliverer = voucher.ReceiptType == CashReceiptType.DriverHandover ? "المسلِّم (السائق)" : "الدافع";
                     column.Item().PaddingTop(8).Element(c => Signatures(c, deliverer, "المستلم (أمين الصندوق)", "المحاسب"));
+                });
+
+                page.Footer().Element(Footer);
+            });
+        });
+
+        return document.GeneratePdf();
+    }
+
+    // ------------------------------------------------------------------ customer payment receipt (step 9)
+
+    /// <summary>
+    /// إيصال دفعة: the receipt given to a customer who pays (part of) his debt: amount in figures and words, method,
+    /// reference, the invoices it settled and the remaining debt in that currency.
+    /// </summary>
+    public byte[] RenderCustomerPayment(CustomerPaymentDto payment, InvoiceCompanyInfo company, string currencyName, int decimals, decimal? remainingDebt)
+    {
+        string Money(decimal value) => FormatMoney(value, decimals);
+        var qr = BarcodeGenerator.QrSvg(string.Join("|", payment.PaymentNumber, LocalTime(payment.PaymentDateUtc), Money(payment.Amount) + " " + payment.CurrencyCode));
+        var words = ArabicAmountInWords.Format(payment.Amount, currencyName, decimals);
+
+        var document = Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(payment.Allocations.Count > 8 ? PageSizes.A4 : PageSizes.A5.Landscape());
+                page.Margin(10, Unit.Millimetre);
+                page.ContentFromRightToLeft();
+                page.DefaultTextStyle(style => style.FontFamily(Font).FontSize(9.5f).LineHeight(1.2f));
+
+                page.Header().Element(c => Header(c, company, "إيصال دفعة", payment.PaymentNumber, qr, null));
+
+                page.Content().PaddingTop(5).Column(column =>
+                {
+                    column.Spacing(5);
+
+                    column.Item().Row(row =>
+                    {
+                        row.RelativeItem().Border(0.6f).Padding(5).Column(c =>
+                        {
+                            c.Item().Text("التاريخ: " + LocalTime(payment.PaymentDateUtc));
+                            c.Item().Text("الفرع: " + payment.BranchName);
+                            c.Item().Text("طريقة الدفع: " + payment.PaymentMethodName);
+                            if (!string.IsNullOrWhiteSpace(payment.ReferenceNumber))
+                            {
+                                c.Item().Text("رقم المرجع: " + payment.ReferenceNumber);
+                            }
+                        });
+                        row.ConstantItem(5);
+                        row.RelativeItem().Border(0.6f).Padding(5).Column(c =>
+                        {
+                            c.Item().Text("استلمنا من السيد / السادة:").FontSize(8.5f);
+                            c.Item().Text($"{payment.CustomerName} ({payment.CustomerCode})").Bold().FontSize(11);
+                            if (remainingDebt.HasValue)
+                            {
+                                c.Item().PaddingTop(3).Text(remainingDebt.Value > 0m
+                                        ? $"الدين المتبقي بعد هذه الدفعة: {Money(remainingDebt.Value)} {payment.CurrencyCode}"
+                                        : remainingDebt.Value < 0m
+                                            ? $"رصيد دائن للعميل: {Money(-remainingDebt.Value)} {payment.CurrencyCode}"
+                                            : "لا يوجد دين متبقٍ بهذه العملة.")
+                                    .SemiBold();
+                            }
+                        });
+                    });
+
+                    column.Item().Element(c => AmountBox(c, Money(payment.Amount), payment.CurrencyCode, words));
+
+                    if (payment.Allocations.Count > 0)
+                    {
+                        column.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.ConstantColumn(8, Unit.Millimetre);
+                                columns.RelativeColumn(3);
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(2);
+                            });
+
+                            table.Header(h =>
+                            {
+                                foreach (var t in new[] { "#", "الفاتورة", "المبلغ المسدَّد", "المتبقي على الفاتورة" })
+                                {
+                                    h.Cell().Background(Colors.Grey.Lighten3).Border(0.5f).Padding(2).AlignCenter().Text(t).Bold().FontSize(8.5f);
+                                }
+                            });
+
+                            var n = 1;
+                            foreach (var allocation in payment.Allocations)
+                            {
+                                table.Cell().Border(0.5f).Padding(2).AlignCenter().Text((n++).ToString(CultureInfo.InvariantCulture)).FontSize(8.5f);
+                                table.Cell().Border(0.5f).Padding(2).Text(allocation.InvoiceNumber ?? "-").FontSize(8.5f);
+                                table.Cell().Border(0.5f).Padding(2).AlignLeft().Text(Money(allocation.Amount)).FontSize(8.5f);
+                                table.Cell().Border(0.5f).Padding(2).AlignLeft().Text(Money(allocation.InvoiceBalanceDue)).FontSize(8.5f);
+                            }
+                        });
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(payment.Notes))
+                    {
+                        column.Item().Text("ملاحظات: " + payment.Notes);
+                    }
+
+                    column.Item().PaddingTop(8).Element(c => Signatures(c, "الدافع", "المستلم (أمين الصندوق)"));
                 });
 
                 page.Footer().Element(Footer);
@@ -410,6 +515,7 @@ public sealed class CashDocumentPdfRenderer
         {
             header.Item().Row(row =>
             {
+                DocumentLogo.Add(row, company.Logo, 20);
                 row.RelativeItem().Column(c =>
                 {
                     c.Item().Text(company.ArabicName).Bold().FontSize(13);

@@ -1,3 +1,4 @@
+using ShippingERP.Application.Common.Files;
 using ShippingERP.Application.DTOs.Customers;
 using ShippingERP.Application.DTOs.HR;
 using ShippingERP.Application.DTOs.MasterData;
@@ -113,4 +114,12 @@ public interface ICompanyProfileService
     Task<CompanyProfileDto> GetAsync(CancellationToken cancellationToken);
 
     Task<CompanyProfileDto> SaveAsync(SaveCompanyProfileRequest request, CancellationToken cancellationToken);
+
+    /// <summary>Step 9: stores the company logo (PNG / JPEG, max 1 MB). The profile must exist.</summary>
+    Task<CompanyProfileDto> SetLogoAsync(UploadedFile file, CancellationToken cancellationToken);
+
+    Task<CompanyProfileDto> RemoveLogoAsync(CancellationToken cancellationToken);
+
+    /// <summary>The logo file, or null when there is none.</summary>
+    Task<FileDownload?> GetLogoAsync(CancellationToken cancellationToken);
 }

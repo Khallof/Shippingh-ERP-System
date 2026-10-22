@@ -66,6 +66,7 @@ export const api = {
 
   /** Multipart form (files): the browser sets the boundary. */
   postForm: <T>(url: string, form: FormData) => unwrap<T>(http.post<ApiResponse<T>>(url, form)),
+  putForm: <T>(url: string, form: FormData) => unwrap<T>(http.put<ApiResponse<T>>(url, form)),
 
   /** GET or POST that returns a file (PDF, Excel, HTML label). */
   async download(url: string, options: { params?: object; method?: 'get' | 'post'; body?: unknown; fallbackName?: string } = {}): Promise<DownloadedFile> {

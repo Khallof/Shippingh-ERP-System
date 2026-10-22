@@ -58,6 +58,9 @@ public interface ICustomerPaymentService
 
     /// <summary>Allocates (part of) the unallocated amount of an existing payment.</summary>
     Task<CustomerPaymentDto> AllocateAsync(long paymentId, AllocatePaymentRequest request, CancellationToken cancellationToken);
+
+    /// <summary>Step 9: the printable payment receipt (PDF, with the company logo).</summary>
+    Task<FileDownload> GetReceiptPdfAsync(long paymentId, CancellationToken cancellationToken);
 }
 
 public interface IReceivablesReportService

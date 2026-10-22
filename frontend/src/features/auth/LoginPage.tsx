@@ -7,6 +7,7 @@ import { Alert, Box, Button, Card, CardContent, IconButton, InputAdornment, Stac
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
 import TranslateIcon from '@mui/icons-material/Translate';
+import CompanyLogo from '@/components/common/CompanyLogo';
 import { useTranslation } from 'react-i18next';
 import { AppError } from '@/api/errors';
 import { useAuth } from '@/auth/AuthProvider';
@@ -16,6 +17,9 @@ import { setLanguage, useLanguage, useTx } from '@/i18n';
  * Login page. Validation: zod (client) + the API (FluentValidation, lockout after repeated failures).
  * The refresh token never reaches JavaScript: the API sets it as an httpOnly cookie (X-Auth-Mode: cookie).
  */
+// The login page cannot read the company profile (not signed in yet): reload the public logo once per page load.
+const loginLogoVersion = Date.now();
+
 export default function LoginPage() {
   const { t } = useTranslation();
   const tx = useTx();
@@ -52,7 +56,7 @@ export default function LoginPage() {
         <CardContent sx={{ p: 4 }}>
           <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
             <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-              <Box component="img" src="/favicon.svg" alt="" sx={{ width: 44, height: 44 }} />
+              <CompanyLogo version={loginLogoVersion} size={56} />
               <Box>
                 <Typography variant="h5">{t('app.name')}</Typography>
                 <Typography variant="body2" color="text.secondary">{t('auth.title')}</Typography>

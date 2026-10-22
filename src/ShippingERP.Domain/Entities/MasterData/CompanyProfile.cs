@@ -27,6 +27,15 @@ public class CompanyProfile : BaseEntity
 
     public string? LogoUrl { get; set; }
 
+    /// <summary>Step 9: the company logo (PNG or JPEG, max 1 MB), printed on every document and shown in the app.</summary>
+    public byte[]? LogoImage { get; set; }
+
+    /// <summary>image/png or image/jpeg.</summary>
+    public string? LogoContentType { get; set; }
+
+    /// <summary>When the logo was last changed (cache-busting for the browser).</summary>
+    public DateTime? LogoUpdatedAtUtc { get; set; }
+
     /// <summary>The currency used for accounting and reports.</summary>
     public long BaseCurrencyId { get; set; }
 
