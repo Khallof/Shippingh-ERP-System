@@ -144,7 +144,8 @@ public sealed class ReportFileRenderer
                         ReportColumnKind.Money => moneyFormat,
                         ReportColumnKind.Percent => "0.00\"%\"",
                         ReportColumnKind.Integer => "#,##0",
-                        _ => "#,##0.####"
+                        // Whole numbers without a trailing dot ("90" not "90."), fractions with their decimals ("269.5").
+                        _ => number == decimal.Truncate(number) ? "#,##0" : "#,##0.###"
                     };
                     break;
                 case int integer:
