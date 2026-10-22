@@ -2,12 +2,14 @@ using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using ShippingERP.Application.Common.Files;
 using ShippingERP.Application.DTOs.Accounting;
+using ShippingERP.Application.DTOs.Billing;
 using ShippingERP.Application.DTOs.Reports;
 using ShippingERP.Application.DTOs.Shipments;
-using ShippingERP.Application.Interfaces;
 using ShippingERP.Application.Interfaces.Accounting;
+using ShippingERP.Application.Interfaces.Billing;
 using ShippingERP.Application.Interfaces.Reports;
 using ShippingERP.Application.Interfaces.Shipments;
+using ShippingERP.Application.Interfaces;
 using ShippingERP.Domain.Enums;
 using ShippingERP.Infrastructure.Billing;
 using ShippingERP.Infrastructure.Cash;
@@ -43,8 +45,10 @@ public sealed class ReportExportService : IReportExportService
         ReportFileRenderer renderer,
         BusinessCalendar calendar,
         IDateTimeProvider clock,
-        BillingAccess billing)
+        BillingAccess billing,
+        IInvoiceService invoices)
     {
+        _invoices = invoices;
         _dbContext = dbContext;
         _shipments = shipments;
         _manifests = manifests;
@@ -144,6 +148,69 @@ public sealed class ReportExportService : IReportExportService
 
         return await RenderAsync(report, format, cancellationToken);
     }
+
+    // ------------------------------------------------------------------ invoices (step 9)
+
+    public async Task<FileDownload> InvoicesAsync(InvoiceListQuery query, ExportFormat format, CancellationToken cancellationToken)
+    {
+        var rows = new List<InvoiceListItemDto>();
+        query.PageSize = 100;
+        for (query.PageNumber = 1; rows.Count < MaxRows; query.PageNumber++)
+        {
+            var page = await _invoices.GetPagedAsync(query, cancellationToken);
+            rows.AddRange(page.Items);
+            if (page.Items.Count < query.PageSize || query.PageNumber >= page.TotalPages)
+            {
+                break;
+            }
+        }
+
+        // Amounts in different currencies are never added together: totals only when there is one currency.
+        var oneCurrency = rows.Select(x => x.CurrencyCode).Distinct().Count() <= 1;
+        var report = new ReportDocument
+        {
+            Title = "قائمة الفواتير",
+            FileName = "invoices-" + Stamp(),
+            Landscape = true,
+            Info = new List<(string, string)> { ("عدد الفواتير", rows.Count.ToString("N0", CultureInfo.InvariantCulture)) },
+            Sections = new[]
+            {
+                new ReportSection
+                {
+                    Columns = new ReportColumn[]
+                    {
+                        new("رقم الفاتورة", ReportColumnKind.Text, 1.3f),
+                        new("الحالة"),
+                        new("العميل", ReportColumnKind.Text, 2f),
+                        new("الفرع"),
+                        new("التاريخ", ReportColumnKind.Text, 1f),
+                        new("الاستحقاق", ReportColumnKind.Text, 1f),
+                        new("الشحنات", ReportColumnKind.Integer, 0.6f),
+                        new("الإجمالي", ReportColumnKind.Money),
+                        new("المدفوع", ReportColumnKind.Money),
+                        new("المتبقي", ReportColumnKind.Money),
+                        new("العملة", ReportColumnKind.Text, 0.6f)
+                    },
+                    Rows = rows.Select(x => new object?[]
+                    {
+                        x.InvoiceNumber ?? "مسودة", x.StatusName, $"{x.CustomerName} ({x.CustomerCode})", x.BranchName,
+                        Date(x.InvoiceDateUtc), Date(x.DueDateUtc), x.LineCount, x.TotalAmount, x.PaidAmount, x.BalanceDue, x.CurrencyCode
+                    }).ToList(),
+                    Totals = oneCurrency && rows.Count > 0
+                        ? new object?[]
+                        {
+                            "الإجمالي", null, null, null, null, null, rows.Sum(x => x.LineCount), rows.Sum(x => x.TotalAmount),
+                            rows.Sum(x => x.PaidAmount), rows.Sum(x => x.BalanceDue), rows[0].CurrencyCode
+                        }
+                        : null
+                }
+            }
+        };
+
+        return await RenderAsync(report, format, cancellationToken);
+    }
+
+    private readonly IInvoiceService _invoices;
 
     public async Task<FileDownload> OperationalReportAsync(OperationalReportQuery query, ExportFormat format, CancellationToken cancellationToken)
     {

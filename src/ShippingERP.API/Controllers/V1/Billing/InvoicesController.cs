@@ -1,10 +1,12 @@
 using Asp.Versioning;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc;
 using ShippingERP.API.Security;
 using ShippingERP.Application.Common.Models;
 using ShippingERP.Application.DTOs.Billing;
+using ShippingERP.Application.DTOs.Reports;
 using ShippingERP.Application.Interfaces.Billing;
+using ShippingERP.Application.Interfaces.Reports;
 using ShippingERP.Domain.Authorization;
 
 namespace ShippingERP.API.Controllers.V1.Billing;
@@ -24,10 +26,13 @@ public sealed class InvoicesController : ApiControllerBase
 {
     private readonly IInvoiceService _invoices;
 
-    public InvoicesController(IInvoiceService invoices)
+    public InvoicesController(IInvoiceService invoices, IReportExportService exports)
     {
         _invoices = invoices;
+        _exports = exports;
     }
+
+    private readonly IReportExportService _exports;
 
     /// <summary>Search / filter / sort / page (search: invoice number, customer code / name / phone).</summary>
     [HttpGet]
@@ -167,14 +172,19 @@ public sealed class InvoicesController : ApiControllerBase
         return FileDownloadResult(await _invoices.GetPdfAsync(id, cancellationToken));
     }
 
-    /// <summary>The filtered list as Excel (same filters as GET /invoices, no paging, up to 10,000 rows).</summary>
+    /// <summary>
+    /// The filtered list (same filters as GET /invoices, no paging, up to 10,000 rows): ?format=excel (default) or
+    /// ?format=pdf (step 9, with the company header and logo).
+    /// </summary>
     [HttpGet("export")]
     [HasPermission(Permissions.Invoices.Export)]
-    [Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/json")]
+    [Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/pdf", "application/json")]
     [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Export([FromQuery] InvoiceListQuery query, CancellationToken cancellationToken)
+    public async Task<IActionResult> Export([FromQuery] InvoiceListQuery query, [FromQuery] ExportQuery export, CancellationToken cancellationToken)
     {
-        return FileDownloadResult(await _invoices.ExportAsync(query, cancellationToken));
+        return FileDownloadResult(export.Format == ExportFormat.Pdf
+            ? await _exports.InvoicesAsync(query, ExportFormat.Pdf, cancellationToken)
+            : await _invoices.ExportAsync(query, cancellationToken));
     }
 }

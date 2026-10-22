@@ -1,3 +1,4 @@
+using ShippingERP.Application.DTOs.Billing;
 using ShippingERP.Application.Common.Files;
 using ShippingERP.Application.Common.Models;
 using ShippingERP.Application.DTOs.Accounting;
@@ -25,6 +26,9 @@ public interface IOperationalReportService
 public interface IReportExportService
 {
     Task<FileDownload> ShipmentsAsync(ShipmentListQuery query, ExportFormat format, CancellationToken cancellationToken);
+
+    /// <summary>Step 9: the filtered invoice list (Excel or PDF with the company header and logo).</summary>
+    Task<FileDownload> InvoicesAsync(InvoiceListQuery query, ExportFormat format, CancellationToken cancellationToken);
 
     Task<FileDownload> OperationalReportAsync(OperationalReportQuery query, ExportFormat format, CancellationToken cancellationToken);
 
