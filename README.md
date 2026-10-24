@@ -13,7 +13,7 @@
 
 | الأداة | ملاحظات |
 |---|---|
-| .NET 8 SDK | `dotnet --list-sdks` يجب أن يُظهر إصداراً يبدأ بـ `8.0` |
+| .NET 10 SDK | `dotnet --list-sdks` يجب أن يُظهر إصداراً يبدأ بـ `10.0` |
 | SQL Server 2019/2022 (Express أو Developer) | للتشغيل المحلي بدون Docker |
 | Docker Desktop (WSL 2) | للتشغيل عبر Docker Compose |
 | Visual Studio 2022 17.8+ أو VS Code أو Rider | اختياري |

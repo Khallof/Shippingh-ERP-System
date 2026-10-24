@@ -2,12 +2,12 @@
 #   docker build -f src/ShippingERP.API/Dockerfile -t shippingerp-api .
 
 # ---------- Runtime base image ----------
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 WORKDIR /app
 EXPOSE 8080
 
 # ---------- Build stage ----------
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 
@@ -38,7 +38,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends libfontconfig1 curl \
     && rm -rf /var/lib/apt/lists/*
 
-# The .NET 8 image runs as a non-root user ($APP_UID). Give it writable folders for logs and uploaded files.
+# The .NET 10 image runs as a non-root user ($APP_UID). Give it writable folders for logs and uploaded files.
 RUN mkdir -p /app/logs /app/App_Data/uploads && chown -R $APP_UID:$APP_UID /app/logs /app/App_Data
 
 COPY --from=build /app/publish .

@@ -33,7 +33,7 @@ public static class WebApplicationExtensions
             };
 
             // The proxy's address inside the Docker network is not known in advance.
-            forwarded.KnownNetworks.Clear();
+            forwarded.KnownIPNetworks.Clear();
             forwarded.KnownProxies.Clear();
             app.UseForwardedHeaders(forwarded);
         }

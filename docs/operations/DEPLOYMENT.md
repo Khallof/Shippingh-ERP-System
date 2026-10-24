@@ -5,7 +5,7 @@
 | الخدمة | الصورة | المنفذ | الوظيفة |
 |---|---|---|---|
 | `sqlserver` | SQL Server 2022 | `127.0.0.1:14333` | قاعدة البيانات (حجم `sqlserver-data`) |
-| `api` | `src/ShippingERP.API/Dockerfile` | `127.0.0.1:5080` | الواجهة البرمجية (.NET 8)، الملفات المرفوعة في الحجم `api-uploads` والسجلات في `api-logs` |
+| `api` | `src/ShippingERP.API/Dockerfile` | `127.0.0.1:5080` | الواجهة البرمجية (.NET 10)، الملفات المرفوعة في الحجم `api-uploads` والسجلات في `api-logs` |
 | `frontend` | `frontend/Dockerfile` (nginx غير جذري) | `8080` | تطبيق الويب + تمرير `/api` و`/health` إلى `api` |
 | `proxy` (اختياري) | Caddy 2.8 | `80/443` | HTTPS بشهادات Let's Encrypt تلقائية |
 | `backup` (اختياري) | أدوات SQL Server | — | نسخ احتياطي يومي للقاعدة والملفات مع حذف القديم |
