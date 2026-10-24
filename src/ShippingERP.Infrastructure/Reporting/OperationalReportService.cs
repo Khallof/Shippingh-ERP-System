@@ -6,6 +6,7 @@ using ShippingERP.Application.Interfaces.Reports;
 using ShippingERP.Domain.Entities.Shipments;
 using ShippingERP.Domain.Enums;
 using ShippingERP.Domain.Shipments;
+using ShippingERP.Infrastructure.Billing;
 using ShippingERP.Infrastructure.Cash;
 using ShippingERP.Infrastructure.Persistence;
 using ShippingERP.Infrastructure.Shipments;
@@ -33,9 +34,11 @@ public sealed class OperationalReportService : IOperationalReportService
     private readonly ShipmentAccessService _access;
     private readonly BusinessCalendar _calendar;
     private readonly IDateTimeProvider _clock;
+    private readonly BillingAccess _billing;
 
-    public OperationalReportService(AppDbContext dbContext, ShipmentAccessService access, BusinessCalendar calendar, IDateTimeProvider clock)
+    public OperationalReportService(AppDbContext dbContext, ShipmentAccessService access, BusinessCalendar calendar, IDateTimeProvider clock, BillingAccess billing)
     {
+        _billing = billing;
         _dbContext = dbContext;
         _access = access;
         _calendar = calendar;
@@ -104,7 +107,11 @@ public sealed class OperationalReportService : IOperationalReportService
         var (from, to) = Range(query);
         var shipments = await FilteredAsync(query, cancellationToken);
 
-        var byBranch = await GroupAsync(shipments, x => (long?)x.OriginBranchId, cancellationToken);
+        // Step 9: money of one currency only (never added across currencies); counts include every shipment.
+        var currency = await _billing.GetCurrencyAsync(query.CurrencyId, cancellationToken);
+        var currencyId = currency.Id;
+
+        var byBranch = await GroupAsync(shipments, x => (long?)x.OriginBranchId, currencyId, cancellationToken);
 
         // Every shipment has exactly one origin branch: the branch groups add up to the totals.
         var totals = new GroupTotals
@@ -117,9 +124,9 @@ public sealed class OperationalReportService : IOperationalReportService
             Charges = byBranch.Sum(x => x.Charges),
             Cod = byBranch.Sum(x => x.Cod)
         };
-        var byDriver = await GroupAsync(shipments, x => x.AssignedDriverId, cancellationToken);
-        var byCustomer = await GroupAsync(shipments, x => (long?)x.SenderCustomerId, cancellationToken);
-        var byService = await GroupAsync(shipments, x => (long?)x.ServiceTypeId, cancellationToken);
+        var byDriver = await GroupAsync(shipments, x => x.AssignedDriverId, currencyId, cancellationToken);
+        var byCustomer = await GroupAsync(shipments, x => (long?)x.SenderCustomerId, currencyId, cancellationToken);
+        var byService = await GroupAsync(shipments, x => (long?)x.ServiceTypeId, currencyId, cancellationToken);
 
         var byStatus = await shipments
             .GroupBy(x => x.Status)
@@ -165,6 +172,7 @@ public sealed class OperationalReportService : IOperationalReportService
         {
             FromDate = from,
             ToDate = to,
+            CurrencyCode = currency.Code,
             Totals = Row(totals, null, "الإجمالي"),
             ByStatus = byStatus
                 .OrderBy(x => x.Status)
@@ -178,7 +186,7 @@ public sealed class OperationalReportService : IOperationalReportService
         };
     }
 
-    private static async Task<List<GroupTotals>> GroupAsync(IQueryable<Shipment> shipments, Expression<Func<Shipment, long?>> key, CancellationToken ct) =>
+    private static async Task<List<GroupTotals>> GroupAsync(IQueryable<Shipment> shipments, Expression<Func<Shipment, long?>> key, long currencyId, CancellationToken ct) =>
         await shipments
             .GroupBy(key)
             .Select(g => new GroupTotals
@@ -189,8 +197,8 @@ public sealed class OperationalReportService : IOperationalReportService
                 Failed = g.Count(x => FailedStatuses.Contains(x.Status)),
                 Done = g.Count(x => DoneStatuses.Contains(x.Status)),
                 Cancelled = g.Count(x => x.Status == ShipmentStatus.Cancelled),
-                Charges = g.Sum(x => x.TotalCharge),
-                Cod = g.Sum(x => x.CODAmount)
+                Charges = g.Sum(x => x.CurrencyId == currencyId ? x.TotalCharge : 0m),
+                Cod = g.Sum(x => x.CurrencyId == currencyId ? x.CODAmount : 0m)
             })
             .ToListAsync(ct);
 

@@ -358,6 +358,7 @@ export interface BalanceSheetDto {
 export interface BalanceSheetQuery {
   asOfDate?: string | null;
   branchId?: number | null;
+  currencyId?: number | null;
 }
 
 export interface BankAccountDto {
@@ -404,6 +405,12 @@ export interface BankBalancesDto {
   baseCurrencyCode: string;
   rows: BankBalanceRowDto[];
   totalBase: number;
+  totalsByCurrency: BankCurrencyTotalDto[];
+}
+
+export interface BankCurrencyTotalDto {
+  currencyCode: string;
+  ledgerBalance: number;
 }
 
 export interface BankMatchRequest {
@@ -599,6 +606,7 @@ export interface CashFlowQuery {
   fromDate?: string | null;
   toDate?: string | null;
   branchId?: number | null;
+  currencyId?: number | null;
 }
 
 export interface CashFlowSectionDto {
@@ -1735,6 +1743,7 @@ export interface DashboardOperationsDto {
 export interface DashboardQuery {
   days?: number;
   branchId?: number | null;
+  currencyId?: number | null;
 }
 
 export interface DashboardTopCustomerDto {
@@ -2013,6 +2022,7 @@ export interface ExpenseByCategoryQuery {
   toDate?: string | null;
   branchId?: number | null;
   costCenterId?: number | null;
+  currencyId?: number | null;
 }
 
 export interface ExpenseCategoryDto extends MasterDataDto {
@@ -2092,6 +2102,7 @@ export interface GeneralLedgerQuery extends PagedQuery {
   toDate?: string | null;
   branchId?: number | null;
   costCenterId?: number | null;
+  currencyId?: number | null;
 }
 
 export interface HandoverCodLineDto {
@@ -2449,6 +2460,7 @@ export interface OperationalGroupRowDto {
 export interface OperationalReportDto {
   fromDate: string;
   toDate: string;
+  currencyCode: string;
   totals: OperationalGroupRowDto;
   byStatus: StatusCountDto[];
   byBranch: OperationalGroupRowDto[];
@@ -2465,6 +2477,7 @@ export interface OperationalReportQuery {
   senderCustomerId?: number | null;
   driverId?: number | null;
   status?: ShipmentStatus | null;
+  currencyId?: number | null;
 }
 
 export interface PagedQuery {
@@ -2486,6 +2499,7 @@ export interface PartyAgingDto {
 export interface PartyAgingQuery {
   asOfDate?: string | null;
   branchId?: number | null;
+  currencyId?: number | null;
 }
 
 export interface PartyAgingRowDto {
@@ -2769,6 +2783,7 @@ export interface ProfitLossQuery {
   toDate?: string | null;
   branchId?: number | null;
   costCenterId?: number | null;
+  currencyId?: number | null;
 }
 
 export interface ProofOfDeliveryDto {
@@ -2865,6 +2880,7 @@ export interface RevenueByBranchDto {
 export interface RevenueByBranchQuery {
   fromDate?: string | null;
   toDate?: string | null;
+  currencyId?: number | null;
 }
 
 export interface RevenueByBranchRowDto {
@@ -3971,6 +3987,7 @@ export interface TrialBalanceQuery {
   costCenterId?: number | null;
   includeZeroBalances?: boolean;
   level?: number | null;
+  currencyId?: number | null;
 }
 
 export interface TrialBalanceRowDto {

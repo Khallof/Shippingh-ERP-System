@@ -22,6 +22,8 @@ import { api } from '@/api/client';
 import type { DashboardDto } from '@/api/generated';
 import { useAuth } from '@/auth/AuthProvider';
 import PageHeader from '@/components/common/PageHeader';
+import CurrencyToggle from '@/components/common/CurrencyToggle';
+import { useReportCurrency } from '@/components/common/useReportCurrency';
 import StatCard from '@/components/common/StatCard';
 import StatusChip from '@/components/common/StatusChip';
 import ErrorAlert from '@/components/common/ErrorAlert';
@@ -54,10 +56,13 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const [days, setDays] = useState(30);
   const [branchId, setBranchId] = useState<number | null>(null);
+  // Step 9: the money cards are in one currency, in its own amounts (no conversion).
+  const currency = useReportCurrency();
 
   const query = useQuery({
-    queryKey: ['/dashboard', days, branchId],
-    queryFn: () => api.get<DashboardDto>('/dashboard', { days, branchId }),
+    queryKey: ['/dashboard', days, branchId, currency.currencyId],
+    queryFn: () => api.get<DashboardDto>('/dashboard', { days, branchId, currencyId: currency.currencyId }),
+    enabled: currency.currencyId !== null || !!currency.error,
     refetchInterval: 120_000
   });
 
@@ -91,6 +96,13 @@ export default function DashboardPage() {
 
       {query.error && <ErrorAlert error={query.error} onRetry={() => void query.refetch()} />}
 
+      {currency.list.length > 1 && (
+        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+          <Typography sx={{ fontWeight: 700 }}>{tx('العملة', 'Currency')}:</Typography>
+          <CurrencyToggle list={currency.list} value={currency.currencyId} onChange={currency.setCurrencyId} />
+        </Box>
+      )}
+
       {(ops || loading) && (
         <Grid container spacing={2} sx={{ mb: 2 }}>
           <Grid size={{ xs: 6, md: 4, lg: 2 }}><StatCard loading={loading} icon={<TodayOutlinedIcon />} label={t('dashboard.todayShipments')} value={formatNumber(ops?.todayCreated)} onClick={() => navigate('/shipments')} /></Grid>
@@ -106,7 +118,7 @@ export default function DashboardPage() {
         <Grid container spacing={2} sx={{ mb: 2 }}>
           <Grid size={{ xs: 12, sm: 6, lg: 3 }}><StatCard icon={<HourglassEmptyIcon />} tone="warning" label={t('dashboard.codPending')} value={money(cod.deliveredNotCollectedAmount, cod.currencyCode)} hint={`${formatNumber(cod.deliveredNotCollectedCount)} ${tx('شحنة مُسلّمة', 'delivered')}`} onClick={() => navigate('/cod')} /></Grid>
           <Grid size={{ xs: 12, sm: 6, lg: 3 }}><StatCard icon={<BadgeOutlinedIcon />} label={t('dashboard.codWithDrivers')} value={money(cod.driversOutstandingTotal, cod.currencyCode)} hint={`${formatNumber(cod.driversWithBalance)} ${tx('سائق', 'drivers')} · ${formatNumber(withDrivers?.count)} ${tx('شحنة', 'shipments')}`} onClick={() => navigate('/cod/driver-balances')} /></Grid>
-          <Grid size={{ xs: 12, sm: 6, lg: 3 }}><StatCard icon={<HandshakeOutlinedIcon />} tone="good" label={t('dashboard.codReady')} value={money(ready?.amount, cod.currencyCode)} hint={`${formatNumber(ready?.count)} ${tx('شحنة', 'shipments')} · ${tx('صافي غير مسوّى', 'unsettled net')} ${money(cod.unsettledSenderNet)}`} onClick={() => navigate('/cod/settlements')} /></Grid>
+          <Grid size={{ xs: 12, sm: 6, lg: 3 }}><StatCard icon={<HandshakeOutlinedIcon />} tone="good" label={t('dashboard.codReady')} value={money(ready?.amount, cod.currencyCode)} hint={`${formatNumber(ready?.count)} ${tx('شحنة', 'shipments')} · ${tx('صافي غير مسوّى', 'unsettled net')} ${money(cod.unsettledSenderNet, cod.currencyCode)}`} onClick={() => navigate('/cod/settlements')} /></Grid>
           <Grid size={{ xs: 12, sm: 6, lg: 3 }}><StatCard icon={<SavingsOutlinedIcon />} label={t('dashboard.cashboxes')} value={money(cod.cashboxBalanceTotal, cod.currencyCode)} hint={`${formatNumber(cod.cashboxCount)} ${tx('صندوق', 'cashboxes')}`} onClick={() => navigate('/cash/cashboxes')} /></Grid>
         </Grid>
       )}
@@ -116,7 +128,7 @@ export default function DashboardPage() {
           <Grid size={{ xs: 12, sm: 6, lg: 3 }}><StatCard icon={<TrendingUpIcon />} tone="good" label={t('dashboard.revenue')} value={money(finance.totalRevenue, finance.baseCurrencyCode)} hint={`${finance.fromDate} → ${finance.toDate}`} /></Grid>
           <Grid size={{ xs: 12, sm: 6, lg: 3 }}><StatCard icon={<TrendingDownIcon />} tone="serious" label={t('dashboard.expenses')} value={money(finance.totalExpenses, finance.baseCurrencyCode)} /></Grid>
           <Grid size={{ xs: 12, sm: 6, lg: 3 }}><StatCard icon={<AccountBalanceWalletOutlinedIcon />} tone={finance.netProfit >= 0 ? 'good' : 'critical'} label={t('dashboard.netProfit')} value={money(finance.netProfit, finance.baseCurrencyCode)} hint={tx('من القيود المرحّلة', 'From posted entries')} /></Grid>
-          <Grid size={{ xs: 12, sm: 6, lg: 3 }}><StatCard icon={<ReceiptLongOutlinedIcon />} tone={finance.overdueInvoicesCount > 0 ? 'critical' : 'good'} label={t('dashboard.overdueInvoices')} value={money(finance.overdueInvoicesAmount, finance.baseCurrencyCode)} hint={`${formatNumber(finance.overdueInvoicesCount)} ${tx('فاتورة', 'invoices')} · ${t('dashboard.receivables')} ${money(finance.receivablesBalance)}`} onClick={() => navigate('/invoices?status=Overdue')} /></Grid>
+          <Grid size={{ xs: 12, sm: 6, lg: 3 }}><StatCard icon={<ReceiptLongOutlinedIcon />} tone={finance.overdueInvoicesCount > 0 ? 'critical' : 'good'} label={t('dashboard.overdueInvoices')} value={money(finance.overdueInvoicesAmount, finance.baseCurrencyCode)} hint={`${formatNumber(finance.overdueInvoicesCount)} ${tx('فاتورة', 'invoices')} · ${t('dashboard.receivables')} ${money(finance.receivablesBalance, finance.baseCurrencyCode)}`} onClick={() => navigate('/invoices?status=Overdue')} /></Grid>
         </Grid>
       )}
 
@@ -193,7 +205,7 @@ export default function DashboardPage() {
                     <TableRow key={customer.customerId} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(`/customers/${customer.customerId}`)}>
                       <TableCell>{customer.code} - {customer.name}</TableCell>
                       <TableCell>{formatNumber(customer.shipmentCount)}</TableCell>
-                      <TableCell align="left" sx={{ fontVariantNumeric: 'tabular-nums' }}>{money(customer.totalCharges)}</TableCell>
+                      <TableCell align="left" sx={{ fontVariantNumeric: 'tabular-nums' }}>{money(customer.totalCharges, finance?.baseCurrencyCode ?? cod?.currencyCode)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

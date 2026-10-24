@@ -267,7 +267,7 @@ public sealed class ReportExportService : IReportExportService
             Title = "التقرير التشغيلي للشحنات",
             FileName = "operations-report-" + Stamp(),
             Landscape = true,
-            Info = await PeriodInfoAsync(result.FromDate, result.ToDate, query.BranchId, cancellationToken),
+            Info = Combine(await PeriodInfoAsync(result.FromDate, result.ToDate, query.BranchId, cancellationToken), ("العملة", result.CurrencyCode)),
             Sections = new[]
             {
                 new ReportSection { Title = "الإجمالي", Columns = OperationalColumns, Rows = new[] { Row(result.Totals) } },

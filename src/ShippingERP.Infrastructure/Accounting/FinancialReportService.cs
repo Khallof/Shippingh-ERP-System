@@ -62,10 +62,17 @@ public sealed class FinancialReportService : IFinancialReportService
     // ------------------------------------------------------------------ building blocks
 
     /// <summary>Posted ledger lines, optionally of one branch and one cost center.</summary>
-    private IQueryable<JournalEntryLine> Ledger(long? branchId, long? costCenterId = null)
+    private IQueryable<JournalEntryLine> Ledger(long? branchId, long? costCenterId = null, long? currencyId = null)
     {
         var lines = Db.JournalEntryLines.AsNoTracking()
             .Where(x => x.JournalEntry.Status == JournalEntryStatus.Posted || x.JournalEntry.Status == JournalEntryStatus.Reversed);
+
+        // Step 9: one currency in its own amounts (an entry has one currency, so its lines still balance).
+        if (currencyId.HasValue)
+        {
+            var currency = currencyId.Value;
+            lines = lines.Where(x => x.JournalEntry.CurrencyId == currency);
+        }
 
         if (branchId.HasValue)
         {
@@ -82,10 +89,15 @@ public sealed class FinancialReportService : IFinancialReportService
         return lines;
     }
 
-    private static async Task<Dictionary<long, Totals>> SumByAccountAsync(IQueryable<JournalEntryLine> lines, CancellationToken ct) =>
+    private static async Task<Dictionary<long, Totals>> SumByAccountAsync(IQueryable<JournalEntryLine> lines, bool original, CancellationToken ct) =>
         (await lines
             .GroupBy(x => x.AccountId)
-            .Select(g => new { AccountId = g.Key, Debit = g.Sum(x => x.DebitBase), Credit = g.Sum(x => x.CreditBase) })
+            .Select(g => new
+            {
+                AccountId = g.Key,
+                Debit = g.Sum(x => original ? x.Debit : x.DebitBase),
+                Credit = g.Sum(x => original ? x.Credit : x.CreditBase)
+            })
             .ToListAsync(ct))
         .ToDictionary(x => x.AccountId, x => new Totals(x.Debit, x.Credit));
 
@@ -117,6 +129,19 @@ public sealed class FinancialReportService : IFinancialReportService
     }
 
     private async Task<string> BaseCodeAsync(CancellationToken ct) => (await _access.BaseCurrencyAsync(ct)).Code;
+
+    /// <summary>The currency the report is in: the requested one (own amounts) or the base currency.</summary>
+    private async Task<string> CurrencyCodeAsync(long? currencyId, CancellationToken ct)
+    {
+        if (!currencyId.HasValue)
+        {
+            return await BaseCodeAsync(ct);
+        }
+
+        var id = currencyId.Value;
+        return await Db.Currencies.AsNoTracking().IgnoreQueryFilters().Where(x => x.Id == id).Select(x => x.Code).FirstOrDefaultAsync(ct)
+               ?? throw new NotFoundException("العملة", id);
+    }
 
     /// <summary>The accounts mapped to a role by the active posting rules (any scope).</summary>
     private async Task<HashSet<long>> RoleAccountsAsync(string role, CancellationToken ct) =>
@@ -162,7 +187,8 @@ public sealed class FinancialReportService : IFinancialReportService
         var (from, to) = await RangeAsync(query.FromDate, query.ToDate, cancellationToken);
         var branchId = _access.ReportBranch(query.BranchId);
         var ids = WithDescendants(account.Id, accounts);
-        var lines = Ledger(branchId, query.CostCenterId).Where(x => ids.Contains(x.AccountId));
+        var original = query.CurrencyId.HasValue;
+        var lines = Ledger(branchId, query.CostCenterId, query.CurrencyId).Where(x => ids.Contains(x.AccountId));
 
         // Profit and loss accounts: the opening balance counts from the start of the fiscal year.
         var openingLines = lines.Where(x => x.JournalEntry.EntryDate < from);
@@ -172,11 +198,19 @@ public sealed class FinancialReportService : IFinancialReportService
             openingLines = openingLines.Where(x => x.JournalEntry.EntryDate >= yearStart);
         }
 
-        var opening = (await SumByAccountAsync(openingLines, cancellationToken)).Values.Sum(x => x.Net);
+        var opening = (await SumByAccountAsync(openingLines, original, cancellationToken)).Values.Sum(x => x.Net);
 
         var period = await lines
             .Where(x => x.JournalEntry.EntryDate >= from && x.JournalEntry.EntryDate <= to)
-            .Select(x => new { x.Id, x.JournalEntry.EntryDate, x.JournalEntryId, x.LineNumber, x.DebitBase, x.CreditBase })
+            .Select(x => new
+            {
+                x.Id,
+                x.JournalEntry.EntryDate,
+                x.JournalEntryId,
+                x.LineNumber,
+                DebitBase = original ? x.Debit : x.DebitBase,
+                CreditBase = original ? x.Credit : x.CreditBase
+            })
             .ToListAsync(cancellationToken);
         var ordered = period.OrderBy(x => x.EntryDate).ThenBy(x => x.JournalEntryId).ThenBy(x => x.LineNumber).ToList();
 
@@ -206,8 +240,8 @@ public sealed class FinancialReportService : IFinancialReportService
                 BranchName = x.Branch.ArabicName,
                 CurrencyCode = x.JournalEntry.Currency.Code,
                 AmountInCurrency = x.Debit - x.Credit,
-                x.DebitBase,
-                x.CreditBase
+                DebitBase = original ? x.Debit : x.DebitBase,
+                CreditBase = original ? x.Credit : x.CreditBase
             })
             .ToDictionaryAsync(x => x.Id, cancellationToken);
 
@@ -243,7 +277,7 @@ public sealed class FinancialReportService : IFinancialReportService
             IncludesSubAccounts = ids.Count > 1,
             FromDate = from,
             ToDate = to,
-            BaseCurrencyCode = await BaseCodeAsync(cancellationToken),
+            BaseCurrencyCode = await CurrencyCodeAsync(query.CurrencyId, cancellationToken),
             OpeningBalance = opening,
             PeriodDebit = periodDebit,
             PeriodCredit = periodCredit,
@@ -260,11 +294,12 @@ public sealed class FinancialReportService : IFinancialReportService
         var (from, to) = await RangeAsync(query.FromDate, query.ToDate, cancellationToken);
         var branchId = _access.ReportBranch(query.BranchId);
         var yearStart = await _access.FiscalYearStartAsync(from, cancellationToken);
-        var lines = Ledger(branchId, query.CostCenterId);
+        var original = query.CurrencyId.HasValue;
+        var lines = Ledger(branchId, query.CostCenterId, query.CurrencyId);
 
-        var before = await SumByAccountAsync(lines.Where(x => x.JournalEntry.EntryDate < from), cancellationToken);
-        var priorYears = await SumByAccountAsync(lines.Where(x => x.JournalEntry.EntryDate < yearStart), cancellationToken);
-        var movement = await SumByAccountAsync(lines.Where(x => x.JournalEntry.EntryDate >= from && x.JournalEntry.EntryDate <= to), cancellationToken);
+        var before = await SumByAccountAsync(lines.Where(x => x.JournalEntry.EntryDate < from), original, cancellationToken);
+        var priorYears = await SumByAccountAsync(lines.Where(x => x.JournalEntry.EntryDate < yearStart), original, cancellationToken);
+        var movement = await SumByAccountAsync(lines.Where(x => x.JournalEntry.EntryDate >= from && x.JournalEntry.EntryDate <= to), original, cancellationToken);
 
         // Opening: balance sheet accounts cumulative; P&L accounts only since the start of the fiscal year. The profit
         // of the earlier years moves to the retained earnings account so the opening columns still balance.
@@ -393,7 +428,7 @@ public sealed class FinancialReportService : IFinancialReportService
         {
             FromDate = from,
             ToDate = to,
-            BaseCurrencyCode = await BaseCodeAsync(cancellationToken),
+            BaseCurrencyCode = await CurrencyCodeAsync(query.CurrencyId, cancellationToken),
             Rows = result,
             TotalOpeningDebit = totalOpeningDebit,
             TotalOpeningCredit = totalOpeningCredit,
@@ -412,9 +447,9 @@ public sealed class FinancialReportService : IFinancialReportService
         var accounts = await AccountsAsync(cancellationToken);
         var (from, to) = await RangeAsync(query.FromDate, query.ToDate, cancellationToken);
         var branchId = _access.ReportBranch(query.BranchId);
+        var original = query.CurrencyId.HasValue;
         var sums = await SumByAccountAsync(
-            Ledger(branchId, query.CostCenterId).Where(x => x.JournalEntry.EntryDate >= from && x.JournalEntry.EntryDate <= to),
-            cancellationToken);
+            Ledger(branchId, query.CostCenterId, query.CurrencyId).Where(x => x.JournalEntry.EntryDate >= from && x.JournalEntry.EntryDate <= to), original, cancellationToken);
 
         var revenue = Groups(sums, accounts, AccountType.Revenue);
         var cost = Groups(sums, accounts, AccountType.CostOfRevenue);
@@ -430,7 +465,7 @@ public sealed class FinancialReportService : IFinancialReportService
         {
             FromDate = from,
             ToDate = to,
-            BaseCurrencyCode = await BaseCodeAsync(cancellationToken),
+            BaseCurrencyCode = await CurrencyCodeAsync(query.CurrencyId, cancellationToken),
             Revenue = revenue,
             TotalRevenue = totalRevenue,
             CostOfRevenue = cost,
@@ -471,10 +506,11 @@ public sealed class FinancialReportService : IFinancialReportService
         var asOf = BusinessCalendar.AsDate(query.AsOfDate ?? _access.Today);
         var branchId = _access.ReportBranch(query.BranchId);
         var yearStart = await _access.FiscalYearStartAsync(asOf, cancellationToken);
-        var lines = Ledger(branchId).Where(x => x.JournalEntry.EntryDate <= asOf);
+        var original = query.CurrencyId.HasValue;
+        var lines = Ledger(branchId, null, query.CurrencyId).Where(x => x.JournalEntry.EntryDate <= asOf);
 
-        var sums = await SumByAccountAsync(lines, cancellationToken);
-        var currentYear = await SumByAccountAsync(lines.Where(x => x.JournalEntry.EntryDate >= yearStart), cancellationToken);
+        var sums = await SumByAccountAsync(lines, original, cancellationToken);
+        var currentYear = await SumByAccountAsync(lines.Where(x => x.JournalEntry.EntryDate >= yearStart), original, cancellationToken);
 
         decimal currentProfit = 0m, totalProfit = 0m;
         foreach (var (accountId, totals) in sums)
@@ -503,7 +539,7 @@ public sealed class FinancialReportService : IFinancialReportService
         return new BalanceSheetDto
         {
             AsOfDate = asOf,
-            BaseCurrencyCode = await BaseCodeAsync(cancellationToken),
+            BaseCurrencyCode = await CurrencyCodeAsync(query.CurrencyId, cancellationToken),
             Assets = assets,
             TotalAssets = totalAssets,
             Liabilities = liabilities,
@@ -527,7 +563,8 @@ public sealed class FinancialReportService : IFinancialReportService
         var branchId = _access.ReportBranch(query.BranchId);
         var cashIds = accounts.Values.Where(x => x.IsCash && x.IsPostable).Select(x => x.Id).ToList();
 
-        var ledger = Ledger(branchId);
+        var original = query.CurrencyId.HasValue;
+        var ledger = Ledger(branchId, null, query.CurrencyId);
         var cashLines = ledger.Where(x => cashIds.Contains(x.AccountId));
         var periodLines = ledger.Where(x => x.JournalEntry.EntryDate >= from && x.JournalEntry.EntryDate <= to);
 
@@ -537,10 +574,11 @@ public sealed class FinancialReportService : IFinancialReportService
         var counterparts = await SumByAccountAsync(
             periodLines.Where(x => !cashIds.Contains(x.AccountId) &&
                                    periodLines.Any(c => c.JournalEntryId == x.JournalEntryId && cashIds.Contains(c.AccountId))),
+            original,
             cancellationToken);
 
-        var opening = await SumByAccountAsync(cashLines.Where(x => x.JournalEntry.EntryDate < from), cancellationToken);
-        var closing = await SumByAccountAsync(cashLines.Where(x => x.JournalEntry.EntryDate <= to), cancellationToken);
+        var opening = await SumByAccountAsync(cashLines.Where(x => x.JournalEntry.EntryDate < from), original, cancellationToken);
+        var closing = await SumByAccountAsync(cashLines.Where(x => x.JournalEntry.EntryDate <= to), original, cancellationToken);
 
         var sections = counterparts
             .Where(x => accounts.ContainsKey(x.Key))
@@ -589,7 +627,7 @@ public sealed class FinancialReportService : IFinancialReportService
         {
             FromDate = from,
             ToDate = to,
-            BaseCurrencyCode = await BaseCodeAsync(cancellationToken),
+            BaseCurrencyCode = await CurrencyCodeAsync(query.CurrencyId, cancellationToken),
             OpeningCash = openingCash,
             Sections = sections,
             NetChange = netChange,
@@ -650,10 +688,17 @@ public sealed class FinancialReportService : IFinancialReportService
         var commission = await RoleAccountsAsync(AccountRoles.CodCommissionRevenue, cancellationToken);
         var services = await RoleAccountsAsync(AccountRoles.AdditionalServiceRevenue, cancellationToken);
 
-        var sums = await Ledger(branchId)
+        var original = query.CurrencyId.HasValue;
+        var sums = await Ledger(branchId, null, query.CurrencyId)
             .Where(x => x.JournalEntry.EntryDate >= from && x.JournalEntry.EntryDate <= to)
             .GroupBy(x => new { x.BranchId, x.AccountId })
-            .Select(g => new { g.Key.BranchId, g.Key.AccountId, Debit = g.Sum(x => x.DebitBase), Credit = g.Sum(x => x.CreditBase) })
+            .Select(g => new
+            {
+                g.Key.BranchId,
+                g.Key.AccountId,
+                Debit = g.Sum(x => original ? x.Debit : x.DebitBase),
+                Credit = g.Sum(x => original ? x.Credit : x.CreditBase)
+            })
             .ToListAsync(cancellationToken);
 
         var branchIds = sums.Select(x => x.BranchId).Distinct().ToList();
@@ -730,7 +775,7 @@ public sealed class FinancialReportService : IFinancialReportService
         {
             FromDate = from,
             ToDate = to,
-            BaseCurrencyCode = await BaseCodeAsync(cancellationToken),
+            BaseCurrencyCode = await CurrencyCodeAsync(query.CurrencyId, cancellationToken),
             Rows = rows,
             Totals = new RevenueByBranchRowDto
             {
@@ -754,13 +799,19 @@ public sealed class FinancialReportService : IFinancialReportService
         var branchId = _access.ReportBranch(query.BranchId);
         var costIds = accounts.Values.Where(x => x.Type is AccountType.Expenses or AccountType.CostOfRevenue).Select(x => x.Id).ToList();
 
-        var lines = Ledger(branchId, query.CostCenterId)
+        var original = query.CurrencyId.HasValue;
+        var lines = Ledger(branchId, query.CostCenterId, query.CurrencyId)
             .Where(x => x.JournalEntry.EntryDate >= from && x.JournalEntry.EntryDate <= to && costIds.Contains(x.AccountId));
 
-        var byAccount = await SumByAccountAsync(lines, cancellationToken);
+        var byAccount = await SumByAccountAsync(lines, original, cancellationToken);
         var byCategory = await lines
             .GroupBy(x => x.ExpenseCategoryId)
-            .Select(g => new { CategoryId = g.Key, Debit = g.Sum(x => x.DebitBase), Credit = g.Sum(x => x.CreditBase) })
+            .Select(g => new
+            {
+                CategoryId = g.Key,
+                Debit = g.Sum(x => original ? x.Debit : x.DebitBase),
+                Credit = g.Sum(x => original ? x.Credit : x.CreditBase)
+            })
             .ToListAsync(cancellationToken);
 
         var categoryIds = byCategory.Where(x => x.CategoryId.HasValue).Select(x => x.CategoryId!.Value).ToList();
@@ -775,7 +826,7 @@ public sealed class FinancialReportService : IFinancialReportService
         {
             FromDate = from,
             ToDate = to,
-            BaseCurrencyCode = await BaseCodeAsync(cancellationToken),
+            BaseCurrencyCode = await CurrencyCodeAsync(query.CurrencyId, cancellationToken),
             ByAccount = byAccount
                 .Where(x => x.Value.Net != 0m)
                 .Select(x => new ExpenseAccountRowDto
@@ -819,7 +870,8 @@ public sealed class FinancialReportService : IFinancialReportService
         var branchId = _access.ReportBranch(query.BranchId);
         var accountIds = await RoleAccountsAsync(role, cancellationToken);
 
-        var lines = Ledger(branchId).Where(x => x.JournalEntry.EntryDate <= asOf && (accountIds.Contains(x.AccountId) || x.AccountRole == role));
+        var original = query.CurrencyId.HasValue;
+        var lines = Ledger(branchId, null, query.CurrencyId).Where(x => x.JournalEntry.EntryDate <= asOf && (accountIds.Contains(x.AccountId) || x.AccountRole == role));
         lines = isSupplier ? lines.Where(x => x.SupplierId != null) : lines.Where(x => x.CustomerId != null);
 
         var movements = await lines
@@ -828,8 +880,8 @@ public sealed class FinancialReportService : IFinancialReportService
                 PartyId = isSupplier ? x.SupplierId!.Value : x.CustomerId!.Value,
                 x.JournalEntry.EntryDate,
                 x.Id,
-                x.DebitBase,
-                x.CreditBase
+                DebitBase = original ? x.Debit : x.DebitBase,
+                CreditBase = original ? x.Credit : x.CreditBase
             })
             .ToListAsync(cancellationToken);
 
@@ -878,7 +930,7 @@ public sealed class FinancialReportService : IFinancialReportService
         {
             AsOfDate = asOf,
             PartyType = isSupplier ? "Supplier" : "Customer",
-            BaseCurrencyCode = await BaseCodeAsync(cancellationToken),
+            BaseCurrencyCode = await CurrencyCodeAsync(query.CurrencyId, cancellationToken),
             Rows = rows,
             Totals = new PartyAgingRowDto
             {
@@ -1127,7 +1179,12 @@ public sealed class FinancialReportService : IFinancialReportService
             AsOfDate = today,
             BaseCurrencyCode = await BaseCodeAsync(cancellationToken),
             Rows = rows,
-            TotalBase = rows.Sum(x => x.LedgerBalanceBase)
+            TotalBase = rows.Sum(x => x.LedgerBalanceBase),
+            TotalsByCurrency = rows
+                .GroupBy(x => x.CurrencyCode)
+                .OrderBy(g => g.Key, StringComparer.Ordinal)
+                .Select(g => new BankCurrencyTotalDto { CurrencyCode = g.Key, LedgerBalance = g.Sum(x => x.LedgerBalance) })
+                .ToList()
         };
     }
 

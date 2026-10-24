@@ -23,6 +23,9 @@ public sealed class GeneralLedgerQuery : PagedQuery
     public long? BranchId { get; set; }
 
     public long? CostCenterId { get; set; }
+
+    /// <summary>Step 9: report one currency in its own amounts (no conversion). Null = everything in the base currency.</summary>
+    public long? CurrencyId { get; set; }
 }
 
 public sealed class GeneralLedgerLineDto
@@ -88,6 +91,9 @@ public sealed class TrialBalanceQuery
 
     /// <summary>Roll the postable accounts up to this tree level (1 = main groups). Default: postable accounts.</summary>
     public int? Level { get; set; }
+
+    /// <summary>Step 9: report one currency in its own amounts (no conversion). Null = everything in the base currency.</summary>
+    public long? CurrencyId { get; set; }
 }
 
 public sealed class TrialBalanceRowDto
@@ -135,6 +141,9 @@ public sealed class ProfitLossQuery
     public long? BranchId { get; set; }
 
     public long? CostCenterId { get; set; }
+
+    /// <summary>Step 9: report one currency in its own amounts (no conversion). Null = everything in the base currency.</summary>
+    public long? CurrencyId { get; set; }
 }
 
 public sealed class StatementAccountDto
@@ -180,6 +189,9 @@ public sealed class BalanceSheetQuery
     public DateTime? AsOfDate { get; set; }
 
     public long? BranchId { get; set; }
+
+    /// <summary>Step 9: report one currency in its own amounts (no conversion). Null = everything in the base currency.</summary>
+    public long? CurrencyId { get; set; }
 }
 
 public sealed class BalanceSheetDto
@@ -220,6 +232,9 @@ public sealed class CashFlowQuery
     public DateTime? ToDate { get; set; }
 
     public long? BranchId { get; set; }
+
+    /// <summary>Step 9: report one currency in its own amounts (no conversion). Null = everything in the base currency.</summary>
+    public long? CurrencyId { get; set; }
 }
 
 public sealed class CashFlowLineDto
@@ -284,6 +299,9 @@ public sealed class RevenueByBranchQuery
     public DateTime? FromDate { get; set; }
 
     public DateTime? ToDate { get; set; }
+
+    /// <summary>Step 9: report one currency in its own amounts (no conversion). Null = everything in the base currency.</summary>
+    public long? CurrencyId { get; set; }
 }
 
 public sealed class RevenueByBranchRowDto
@@ -319,6 +337,9 @@ public sealed class ExpenseByCategoryQuery
     public long? BranchId { get; set; }
 
     public long? CostCenterId { get; set; }
+
+    /// <summary>Step 9: report one currency in its own amounts (no conversion). Null = everything in the base currency.</summary>
+    public long? CurrencyId { get; set; }
 }
 
 public sealed class ExpenseAccountRowDto
@@ -358,6 +379,9 @@ public sealed class PartyAgingQuery
     public DateTime? AsOfDate { get; set; }
 
     public long? BranchId { get; set; }
+
+    /// <summary>Step 9: report one currency in its own amounts (no conversion). Null = everything in the base currency.</summary>
+    public long? CurrencyId { get; set; }
 }
 
 public sealed class PartyAgingRowDto
@@ -449,7 +473,18 @@ public sealed class BankBalancesDto
     public DateTime AsOfDate { get; init; }
     public string BaseCurrencyCode { get; init; } = string.Empty;
     public IReadOnlyList<BankBalanceRowDto> Rows { get; init; } = Array.Empty<BankBalanceRowDto>();
+
+    /// <summary>Converted to the base currency (kept for compatibility; prefer TotalsByCurrency).</summary>
     public decimal TotalBase { get; init; }
+
+    /// <summary>Step 9: the total of each currency in its own amounts (no conversion).</summary>
+    public IReadOnlyList<BankCurrencyTotalDto> TotalsByCurrency { get; init; } = Array.Empty<BankCurrencyTotalDto>();
+}
+
+public sealed class BankCurrencyTotalDto
+{
+    public string CurrencyCode { get; init; } = string.Empty;
+    public decimal LedgerBalance { get; init; }
 }
 
 /// <summary>GET /api/v1/accounting/reports/control-accounts: every sub-ledger against its control account.</summary>

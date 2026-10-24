@@ -21,6 +21,9 @@ public sealed class DashboardQuery
 
     /// <summary>Optional branch (only branches the caller can see).</summary>
     public long? BranchId { get; set; }
+
+    /// <summary>Step 9: the money figures are in this currency, in its own amounts (no conversion). Default: base.</summary>
+    public long? CurrencyId { get; set; }
 }
 
 public sealed class StatusCountDto
@@ -156,6 +159,9 @@ public sealed class OperationalReportQuery
     public long? DriverId { get; set; }
 
     public ShipmentStatus? Status { get; set; }
+
+    /// <summary>Step 9: charges and COD amounts of this currency only, in its own amounts. Default: base. Counts include every currency.</summary>
+    public long? CurrencyId { get; set; }
 }
 
 public sealed class OperationalGroupRowDto
@@ -176,6 +182,9 @@ public sealed class OperationalReportDto
 {
     public DateTime FromDate { get; init; }
     public DateTime ToDate { get; init; }
+
+    /// <summary>Currency of TotalCharges / CodAmount.</summary>
+    public string CurrencyCode { get; init; } = string.Empty;
     public OperationalGroupRowDto Totals { get; init; } = new();
     public IReadOnlyList<StatusCountDto> ByStatus { get; init; } = Array.Empty<StatusCountDto>();
     public IReadOnlyList<OperationalGroupRowDto> ByBranch { get; init; } = Array.Empty<OperationalGroupRowDto>();

@@ -451,6 +451,7 @@ public sealed class GeneralLedgerQueryValidator : AbstractValidator<GeneralLedge
             .When(x => x.FromDate.HasValue && x.ToDate.HasValue);
         RuleFor(x => x.BranchId).ValidOptionalId("الفرع غير صالح.").When(x => x.BranchId.HasValue);
         RuleFor(x => x.CostCenterId).ValidOptionalId("مركز التكلفة غير صالح.").When(x => x.CostCenterId.HasValue);
+        RuleFor(x => x.CurrencyId).ValidOptionalId("العملة غير صالحة.").When(x => x.CurrencyId.HasValue);
     }
 }
 
@@ -466,6 +467,7 @@ public sealed class TrialBalanceQueryValidator : AbstractValidator<TrialBalanceQ
         RuleFor(x => x.BranchId).ValidOptionalId("الفرع غير صالح.").When(x => x.BranchId.HasValue);
         RuleFor(x => x.CostCenterId).ValidOptionalId("مركز التكلفة غير صالح.").When(x => x.CostCenterId.HasValue);
         RuleFor(x => x.Level).InclusiveBetween(1, 10).WithMessage("المستوى بين 1 و 10.").When(x => x.Level.HasValue);
+        RuleFor(x => x.CurrencyId).ValidOptionalId("العملة غير صالحة.").When(x => x.CurrencyId.HasValue);
     }
 }
 
@@ -480,6 +482,7 @@ public sealed class ProfitLossQueryValidator : AbstractValidator<ProfitLossQuery
             .When(x => x.FromDate.HasValue && x.ToDate.HasValue);
         RuleFor(x => x.BranchId).ValidOptionalId("الفرع غير صالح.").When(x => x.BranchId.HasValue);
         RuleFor(x => x.CostCenterId).ValidOptionalId("مركز التكلفة غير صالح.").When(x => x.CostCenterId.HasValue);
+        RuleFor(x => x.CurrencyId).ValidOptionalId("العملة غير صالحة.").When(x => x.CurrencyId.HasValue);
     }
 }
 
@@ -489,6 +492,7 @@ public sealed class BalanceSheetQueryValidator : AbstractValidator<BalanceSheetQ
     {
         RuleFor(x => x.AsOfDate).ValidOptionalAccountingDate("تاريخ الميزانية");
         RuleFor(x => x.BranchId).ValidOptionalId("الفرع غير صالح.").When(x => x.BranchId.HasValue);
+        RuleFor(x => x.CurrencyId).ValidOptionalId("العملة غير صالحة.").When(x => x.CurrencyId.HasValue);
     }
 }
 
@@ -502,6 +506,7 @@ public sealed class CashFlowQueryValidator : AbstractValidator<CashFlowQuery>
             .GreaterThanOrEqualTo(x => x.FromDate!.Value).WithMessage("تاريخ النهاية يجب ألا يسبق تاريخ البداية.")
             .When(x => x.FromDate.HasValue && x.ToDate.HasValue);
         RuleFor(x => x.BranchId).ValidOptionalId("الفرع غير صالح.").When(x => x.BranchId.HasValue);
+        RuleFor(x => x.CurrencyId).ValidOptionalId("العملة غير صالحة.").When(x => x.CurrencyId.HasValue);
     }
 }
 
@@ -529,6 +534,7 @@ public sealed class RevenueByBranchQueryValidator : AbstractValidator<RevenueByB
         RuleFor(x => x.ToDate)
             .GreaterThanOrEqualTo(x => x.FromDate!.Value).WithMessage("تاريخ النهاية يجب ألا يسبق تاريخ البداية.")
             .When(x => x.FromDate.HasValue && x.ToDate.HasValue);
+        RuleFor(x => x.CurrencyId).ValidOptionalId("العملة غير صالحة.").When(x => x.CurrencyId.HasValue);
     }
 }
 
@@ -543,6 +549,7 @@ public sealed class ExpenseByCategoryQueryValidator : AbstractValidator<ExpenseB
             .When(x => x.FromDate.HasValue && x.ToDate.HasValue);
         RuleFor(x => x.BranchId).ValidOptionalId("الفرع غير صالح.").When(x => x.BranchId.HasValue);
         RuleFor(x => x.CostCenterId).ValidOptionalId("مركز التكلفة غير صالح.").When(x => x.CostCenterId.HasValue);
+        RuleFor(x => x.CurrencyId).ValidOptionalId("العملة غير صالحة.").When(x => x.CurrencyId.HasValue);
     }
 }
 
@@ -552,5 +559,6 @@ public sealed class PartyAgingQueryValidator : AbstractValidator<PartyAgingQuery
     {
         RuleFor(x => x.AsOfDate).ValidOptionalAccountingDate("تاريخ الأعمار");
         RuleFor(x => x.BranchId).ValidOptionalId("الفرع غير صالح.").When(x => x.BranchId.HasValue);
+        RuleFor(x => x.CurrencyId).ValidOptionalId("العملة غير صالحة.").When(x => x.CurrencyId.HasValue);
     }
 }

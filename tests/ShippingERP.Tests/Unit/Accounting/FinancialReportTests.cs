@@ -100,6 +100,24 @@ public sealed class FinancialReportTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task OneCurrency_IsReportedInItsOwnAmounts_WithoutTheOthers()
+    {
+        var syp = await _context.QueryAsync(db => db.Currencies.Where(x => x.Code == "SYP").Select(x => x.Id).SingleAsync());
+        var other = await _context.QueryAsync(db => db.Currencies.Where(x => x.Code != "SYP").Select(x => x.Id).FirstAsync());
+
+        var pl = await Reports(s => s.GetProfitLossAsync(new ProfitLossQuery { CurrencyId = syp }, CancellationToken.None));
+        Assert.Equal("SYP", pl.BaseCurrencyCode);
+        Assert.Equal(Revenue, pl.TotalRevenue);
+
+        var trial = await Reports(s => s.GetTrialBalanceAsync(new TrialBalanceQuery { CurrencyId = syp }, CancellationToken.None));
+        Assert.True(trial.IsBalanced);
+
+        var none = await Reports(s => s.GetProfitLossAsync(new ProfitLossQuery { CurrencyId = other }, CancellationToken.None));
+        Assert.Equal(0m, none.TotalRevenue);
+        Assert.Equal(0m, none.TotalExpenses);
+    }
+
+    [Fact]
     public async Task ProfitAndLoss_ShowsRevenueAndExpenses_WithoutTheCodAmount()
     {
         var pl = await Reports(s => s.GetProfitLossAsync(new ProfitLossQuery(), CancellationToken.None));

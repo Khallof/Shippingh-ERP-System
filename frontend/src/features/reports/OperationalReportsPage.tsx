@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Box, Card, CardContent, CardHeader, Divider, Grid2 as Grid, LinearProgress, MenuItem, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, TextField } from '@mui/material';
+import { Box, Card, CardContent, CardHeader, Divider, Grid2 as Grid, LinearProgress, MenuItem, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, TextField, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/api/client';
 import type { OperationalGroupRowDto, OperationalReportDto } from '@/api/generated';
@@ -8,19 +8,21 @@ import PageHeader from '@/components/common/PageHeader';
 import StatCard from '@/components/common/StatCard';
 import ErrorAlert from '@/components/common/ErrorAlert';
 import ExportMenu from '@/components/common/ExportMenu';
+import CurrencyToggle from '@/components/common/CurrencyToggle';
+import { useReportCurrency } from '@/components/common/useReportCurrency';
 import { CategoryBarChart, TrendChart } from '@/components/charts/Charts';
 import { enumLabel, enumOptions } from '@/i18n/enums';
 import { useLanguage, useTx } from '@/i18n';
 import { businessDaysAgo, businessToday, formatMoney, formatNumber, formatPercent } from '@/utils/format';
 import ReportFilters, { type ReportFilterValues } from './ReportFilters';
 
-function GroupTable({ rows }: { rows: OperationalGroupRowDto[] }) {
+function GroupTable({ rows, currencyCode }: { rows: OperationalGroupRowDto[]; currencyCode: string }) {
   const tx = useTx();
   const language = useLanguage();
   return (
     <Box sx={{ overflowX: 'auto' }}>
       <Table size="small">
-        <TableHead><TableRow><TableCell>{tx('الاسم', 'Name')}</TableCell><TableCell>{tx('الشحنات', 'Total')}</TableCell><TableCell>{tx('سُلّمت', 'Delivered')}</TableCell><TableCell>{tx('فشلت', 'Failed')}</TableCell><TableCell>{tx('قيد التنفيذ', 'In progress')}</TableCell><TableCell>{tx('ملغاة', 'Cancelled')}</TableCell><TableCell>{tx('نسبة التسليم', 'Delivered %')}</TableCell><TableCell>{tx('الأجور', 'Charges')}</TableCell><TableCell>COD</TableCell></TableRow></TableHead>
+        <TableHead><TableRow><TableCell>{tx('الاسم', 'Name')}</TableCell><TableCell>{tx('الشحنات', 'Total')}</TableCell><TableCell>{tx('سُلّمت', 'Delivered')}</TableCell><TableCell>{tx('فشلت', 'Failed')}</TableCell><TableCell>{tx('قيد التنفيذ', 'In progress')}</TableCell><TableCell>{tx('ملغاة', 'Cancelled')}</TableCell><TableCell>{tx('نسبة التسليم', 'Delivered %')}</TableCell><TableCell>{tx('الأجور', 'Charges')} {currencyCode}</TableCell><TableCell>COD {currencyCode}</TableCell></TableRow></TableHead>
         <TableBody>
           {rows.map((r, i) => (
             <TableRow key={`${r.id ?? 'x'}-${i}`}>
@@ -42,7 +44,10 @@ export default function OperationalReportsPage() {
   const language = useLanguage();
   const [values, setValues] = useState<ReportFilterValues>({ fromDate: businessDaysAgo(29), toDate: businessToday(), branchId: null, senderCustomerId: null, driverId: null, status: null });
   const [tab, setTab] = useState(0);
-  const report = useQuery({ queryKey: ['/reports/operations', values], queryFn: () => api.get<OperationalReportDto>('/reports/operations', values), placeholderData: keepPreviousData });
+  // Step 9: charges and COD amounts of one currency only, in its own amounts (counts include every shipment).
+  const currency = useReportCurrency();
+  const params = { ...values, currencyId: currency.currencyId };
+  const report = useQuery({ queryKey: ['/reports/operations', params], queryFn: () => api.get<OperationalReportDto>('/reports/operations', params), placeholderData: keepPreviousData, enabled: currency.currencyId !== null || !!currency.error });
   const d = report.data;
   const groups = d ? [d.byBranch, d.byDriver, d.byCustomer, d.byServiceType] : [];
 
@@ -58,8 +63,14 @@ export default function OperationalReportsPage() {
           <MenuItem value="">{t('common.all')}</MenuItem>
           {enumOptions('ShipmentStatus', language).map((o) => <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)}
         </TextField>
-        <ExportMenu url="/reports/operations/export" params={values} />
+        <ExportMenu url="/reports/operations/export" params={params} />
       </ReportFilters>
+      {currency.list.length > 1 && (
+        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+          <Typography sx={{ fontWeight: 700 }}>{tx('عملة المبالغ', 'Amounts currency')}:</Typography>
+          <CurrencyToggle list={currency.list} value={currency.currencyId} onChange={currency.setCurrencyId} />
+        </Box>
+      )}
       {report.isFetching && <LinearProgress sx={{ mb: 1 }} />}
       {report.error && <ErrorAlert error={report.error} />}
       {d && (
@@ -69,8 +80,8 @@ export default function OperationalReportsPage() {
             <Grid size={{ xs: 6, md: 2 }}><StatCard tone="good" label={tx('سُلّمت', 'Delivered')} value={formatNumber(d.totals.delivered)} hint={formatPercent(d.totals.deliveredPercent, language)} /></Grid>
             <Grid size={{ xs: 6, md: 2 }}><StatCard tone="serious" label={tx('فشلت / مرتجعة', 'Failed / returned')} value={formatNumber(d.totals.failed)} /></Grid>
             <Grid size={{ xs: 6, md: 2 }}><StatCard label={tx('قيد التنفيذ', 'In progress')} value={formatNumber(d.totals.inProgress)} /></Grid>
-            <Grid size={{ xs: 6, md: 2 }}><StatCard label={tx('الأجور', 'Charges')} value={formatMoney(d.totals.totalCharges)} /></Grid>
-            <Grid size={{ xs: 6, md: 2 }}><StatCard label={tx('مبالغ التحصيل', 'COD amounts')} value={formatMoney(d.totals.codAmount)} /></Grid>
+            <Grid size={{ xs: 6, md: 2 }}><StatCard label={tx('الأجور', 'Charges')} value={formatMoney(d.totals.totalCharges, d.currencyCode)} /></Grid>
+            <Grid size={{ xs: 6, md: 2 }}><StatCard label={tx('مبالغ التحصيل', 'COD amounts')} value={formatMoney(d.totals.codAmount, d.currencyCode)} /></Grid>
           </Grid>
           <Grid container spacing={2} sx={{ mb: 2 }}>
             <Grid size={{ xs: 12, lg: 7 }}>
@@ -90,7 +101,7 @@ export default function OperationalReportsPage() {
             <Tabs value={tab} onChange={(_, v: number) => setTab(v)} variant="scrollable" sx={{ borderBottom: 1, borderColor: 'divider' }}>
               <Tab label={tx('حسب الفرع', 'By branch')} /><Tab label={tx('حسب السائق', 'By driver')} /><Tab label={tx('حسب العميل', 'By customer')} /><Tab label={tx('حسب نوع البضاعة', 'By goods type')} />
             </Tabs>
-            <GroupTable rows={groups[tab] ?? []} />
+            <GroupTable rows={groups[tab] ?? []} currencyCode={d.currencyCode ?? ''} />
           </Card>
         </>
       )}

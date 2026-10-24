@@ -82,6 +82,7 @@ public sealed class DashboardService : IDashboardService
         var now = _clock.UtcNow;
         var today = _calendar.BusinessDate(now);
         var days = Math.Clamp(query.Days, 1, 365);
+        var currency = await _billing.GetCurrencyAsync(query.CurrencyId, cancellationToken);
 
         DashboardOperationsDto? operations = null;
         IReadOnlyList<DashboardTopCustomerDto>? topCustomers = null;
@@ -90,7 +91,7 @@ public sealed class DashboardService : IDashboardService
         {
             var shipments = await ShipmentsAsync(query.BranchId, cancellationToken);
             operations = await OperationsAsync(shipments, today, days, cancellationToken);
-            topCustomers = await TopCustomersAsync(shipments, today, days, cancellationToken);
+            topCustomers = await TopCustomersAsync(shipments.Where(x => x.CurrencyId == currency.Id), today, days, cancellationToken);
             activity = await ActivityAsync(shipments, cancellationToken);
         }
 
@@ -98,9 +99,9 @@ public sealed class DashboardService : IDashboardService
         IReadOnlyList<DashboardDriverBalanceDto>? drivers = null;
         if (Can(Permissions.Cod.View))
         {
-            cod = await _codReports.GetDashboardAsync(new CodDashboardQuery { BranchId = query.BranchId }, cancellationToken);
+            cod = await _codReports.GetDashboardAsync(new CodDashboardQuery { BranchId = query.BranchId, CurrencyId = currency.Id }, cancellationToken);
             var balances = await _codReports.GetDriverBalancesAsync(
-                new DriverBalanceQuery { BranchId = query.BranchId, PageSize = 5, SortBy = "balance", SortDirection = "desc", OnlyOutstanding = true },
+                new DriverBalanceQuery { BranchId = query.BranchId, CurrencyId = currency.Id, PageSize = 5, SortBy = "balance", SortDirection = "desc", OnlyOutstanding = true },
                 cancellationToken);
             drivers = balances.Items.Select(x => new DashboardDriverBalanceDto
             {
@@ -134,7 +135,7 @@ public sealed class DashboardService : IDashboardService
         var canInvoices = canFinance || Can(Permissions.Invoices.View);
         if (canFinance || canInvoices)
         {
-            finance = await FinanceAsync(query.BranchId, today, now, canFinance, cancellationToken);
+            finance = await FinanceAsync(query.BranchId, currency, today, now, canFinance, cancellationToken);
         }
 
         return new DashboardDto
@@ -284,15 +285,14 @@ public sealed class DashboardService : IDashboardService
         }).ToList();
     }
 
-    private async Task<DashboardFinanceDto> FinanceAsync(long? branchId, DateTime today, DateTime now, bool withProfit, CancellationToken ct)
+    private async Task<DashboardFinanceDto> FinanceAsync(long? branchId, CurrencyRef baseCurrency, DateTime today, DateTime now, bool withProfit, CancellationToken ct)
     {
-        var baseCurrency = await _billing.GetBaseCurrencyAsync(ct);
         var monthStart = new DateTime(today.Year, today.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
         decimal revenue = 0m, expenses = 0m, net = 0m;
         if (withProfit)
         {
-            var pl = await _financialReports.GetProfitLossAsync(new ProfitLossQuery { FromDate = monthStart, ToDate = today, BranchId = branchId }, ct);
+            var pl = await _financialReports.GetProfitLossAsync(new ProfitLossQuery { FromDate = monthStart, ToDate = today, BranchId = branchId, CurrencyId = baseCurrency.Id }, ct);
             revenue = pl.TotalRevenue;
             expenses = pl.TotalCostOfRevenue + pl.TotalExpenses;
             net = pl.NetProfit;

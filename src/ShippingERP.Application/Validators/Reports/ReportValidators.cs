@@ -11,6 +11,7 @@ public sealed class DashboardQueryValidator : AbstractValidator<DashboardQuery>
     {
         RuleFor(x => x.Days).InclusiveBetween(1, 365).WithMessage("عدد الأيام بين 1 و 365.");
         RuleFor(x => x.BranchId).GreaterThan(0).WithMessage("الفرع غير صالح.").When(x => x.BranchId.HasValue);
+        RuleFor(x => x.CurrencyId).GreaterThan(0).WithMessage("العملة غير صالحة.").When(x => x.CurrencyId.HasValue);
     }
 }
 
@@ -28,6 +29,7 @@ public sealed class OperationalReportQueryValidator : AbstractValidator<Operatio
         RuleFor(x => x.SenderCustomerId).GreaterThan(0).WithMessage("العميل غير صالح.").When(x => x.SenderCustomerId.HasValue);
         RuleFor(x => x.DriverId).GreaterThan(0).WithMessage("السائق غير صالح.").When(x => x.DriverId.HasValue);
         RuleFor(x => x.Status).IsInEnum().WithMessage("حالة الشحنة غير صالحة.").When(x => x.Status.HasValue);
+        RuleFor(x => x.CurrencyId).GreaterThan(0).WithMessage("العملة غير صالحة.").When(x => x.CurrencyId.HasValue);
     }
 }
 
