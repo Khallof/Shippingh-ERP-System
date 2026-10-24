@@ -32,8 +32,8 @@ const optionalNumber = z.number().nonnegative().nullable();
 /** Same rules as the API validator (SaveShipmentRequestValidator); the API checks everything again. */
 function buildSchema(tx: (ar: string, en: string) => string) {
   const required = tx('مطلوب', 'Required');
-  const money = z.number({ invalid_type_error: required }).min(0, tx('لا يقبل قيمة سالبة', 'Must not be negative'));
-  const id = z.number({ invalid_type_error: required, required_error: required }).int().positive(required);
+  const money = z.number({ error: required }).min(0, tx('لا يقبل قيمة سالبة', 'Must not be negative'));
+  const id = z.number({ error: required }).int().positive(required);
   const maxPackages = 500;
 
   return z
@@ -50,17 +50,17 @@ function buildSchema(tx: (ar: string, en: string) => string) {
       packageDescription: z.string().trim().min(1, required).max(300),
       // Step 9: a number of packages and the totals instead of one row per package.
       packageCount: z
-        .number({ invalid_type_error: required })
+        .number({ error: required })
         .int(tx('عدد صحيح', 'Whole number'))
         .min(1, tx('طرد واحد على الأقل', 'At least one package'))
         .max(maxPackages, `≤ ${maxPackages}`),
-      totalWeightKg: z.number({ invalid_type_error: required }).gt(0, tx('أكبر من صفر', 'Greater than zero')).max(1_000_000),
+      totalWeightKg: z.number({ error: required }).gt(0, tx('أكبر من صفر', 'Greater than zero')).max(1_000_000),
       totalVolumeCbm: z.number().min(0, tx('لا يقبل قيمة سالبة', 'Must not be negative')).max(10000).nullable(),
       pricingBasis: z.enum(['Weight', 'Volume']),
       chargesPaidBy: z.enum(['Sender', 'Recipient']),
       // Step 9: price per kg / per m³ typed on the shipment (empty = the price lists).
-      unitPrice: z.number({ invalid_type_error: required }).min(0, tx('لا يقبل قيمة سالبة', 'Must not be negative')).nullable(),
-      currencyId: z.number({ invalid_type_error: required }).nullable(),
+      unitPrice: z.number({ error: required }).min(0, tx('لا يقبل قيمة سالبة', 'Must not be negative')).nullable(),
+      currencyId: z.number({ error: required }).nullable(),
       declaredValue: money,
       insuranceValue: money,
       isCOD: z.boolean(),
