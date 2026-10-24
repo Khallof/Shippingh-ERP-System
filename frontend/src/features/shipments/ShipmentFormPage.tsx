@@ -138,7 +138,7 @@ function fromShipment(shipment: ShipmentDto): Values {
     unitPrice: shipment.unitPrice,
     extraFee: shipment.extraFee > 0 ? shipment.extraFee : null,
     consignmentNumber: shipment.consignmentNumber,
-    currencyId: shipment.unitPrice !== null ? shipment.currencyId : null,
+    currencyId: shipment.currencyId,
     declaredValue: shipment.declaredValue,
     insuranceValue: shipment.insuranceValue,
     isCOD: shipment.isCOD,
@@ -288,7 +288,24 @@ export default function ShipmentFormPage() {
     onError: (error) => setServerError(error as AppError)
   });
 
+  // Fields the user must fix before saving: listed at the top (a field lower on the page is easy to miss).
+  const [clientErrors, setClientErrors] = useState<string[]>([]);
+  const fieldLabels: Partial<Record<string, string>> = {
+    senderCustomerId: tx('المرسل', 'Sender'), recipientCustomerId: tx('المستلم', 'Recipient'), originBranchId: tx('فرع الإنشاء', 'Origin branch'),
+    destinationCityId: tx('مدينة الوجهة', 'Destination city'), serviceTypeId: tx('نوع البضاعة', 'Goods type'), packageDescription: tx('وصف المحتوى', 'Contents'),
+    packageCount: tx('عدد الطرود', 'Packages'), totalWeightKg: tx('الوزن الكلي', 'Total weight'), totalVolumeCbm: tx('الحجم الكلي', 'Total volume'),
+    unitPrice: tx('السعر', 'Price'), currencyId: tx('العملة', 'Currency'), extraFee: tx('رسوم الخدمات', 'Service fees'), codAmount: tx('مبلغ التحصيل', 'COD amount'),
+    insuranceValue: tx('قيمة التأمين', 'Insurance'), declaredValue: tx('القيمة المصرّح بها', 'Declared value'), manualShippingCharge: tx('السعر اليدوي', 'Manual price'),
+    discountAmount: tx('الخصم', 'Discount'), manualPriceReason: tx('سبب السعر اليدوي', 'Manual price reason'), consignmentNumber: tx('رقم الإرسالية', 'Consignment'),
+    externalReference: tx('المرجع الخارجي', 'External reference'), senderNotes: tx('ملاحظات المرسل', 'Sender notes'), internalNotes: tx('ملاحظات داخلية', 'Internal notes')
+  };
+  const onInvalid = (errors: Record<string, { message?: string } | undefined>) => {
+    setClientErrors(Object.entries(errors).map(([field, error]) => `${fieldLabels[field] ?? field}: ${error?.message ?? tx('قيمة غير صالحة', 'Invalid value')}`));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const save = handleSubmit(async (values) => {
+    setClientErrors([]);
     setServerError(null);
     try {
       const saved = editId ? await shipmentsApi.update(editId, toRequest(values)) : await shipmentsApi.create(toRequest(values));
@@ -297,8 +314,9 @@ export default function ShipmentFormPage() {
       navigate(`/shipments/${saved.id}`, { replace: true });
     } catch (error) {
       setServerError(error as AppError);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  });
+  }, (errors) => onInvalid(errors as Record<string, { message?: string } | undefined>));
 
   const err = (name: FieldPath<Values>) => {
     const parts = name.split('.');
@@ -363,7 +381,7 @@ export default function ShipmentFormPage() {
         title={editId ? `${tx('تعديل الشحنة', 'Edit shipment')} ${existing.data?.trackingNumber ?? ''}` : t('nav.newShipment')}
         actions={
           <>
-            <Button variant="outlined" startIcon={<CalculateOutlinedIcon />} onClick={handleSubmit((values) => quoteMutation.mutate(values))} disabled={quoteMutation.isPending}>
+            <Button variant="outlined" startIcon={<CalculateOutlinedIcon />} onClick={handleSubmit((values) => { setClientErrors([]); quoteMutation.mutate(values); }, (errors) => onInvalid(errors as Record<string, { message?: string } | undefined>))} disabled={quoteMutation.isPending}>
               {tx('احسب السعر', 'Calculate price')}
             </Button>
             <Button type="submit" variant="contained" disabled={formState.isSubmitting}>
@@ -373,6 +391,12 @@ export default function ShipmentFormPage() {
         }
       />
 
+      {clientErrors.length > 0 && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setClientErrors([])}>
+          {tx('لم تُحفظ الشحنة. صحّح الحقول التالية:', 'Not saved. Fix these fields:')}
+          <ul style={{ margin: 0 }}>{clientErrors.map((message) => <li key={message}>{message}</li>)}</ul>
+        </Alert>
+      )}
       {serverError && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {serverError.message}
@@ -545,7 +569,7 @@ export default function ShipmentFormPage() {
             <CardContent>
               <Typography variant="h6" sx={{ mb: 1 }}>{tx('السعر', 'Price')}</Typography>
               <QuotePanel quote={quote} loading={quoteMutation.isPending} />
-              <Button fullWidth variant="outlined" sx={{ mt: 2 }} startIcon={<CalculateOutlinedIcon />} onClick={handleSubmit((values) => quoteMutation.mutate(values))}>
+              <Button fullWidth variant="outlined" sx={{ mt: 2 }} startIcon={<CalculateOutlinedIcon />} onClick={handleSubmit((values) => { setClientErrors([]); quoteMutation.mutate(values); }, (errors) => onInvalid(errors as Record<string, { message?: string } | undefined>))}>
                 {tx('احسب السعر', 'Calculate price')}
               </Button>
             </CardContent>
