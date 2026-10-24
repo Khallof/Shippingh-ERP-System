@@ -123,7 +123,9 @@ public sealed class ReportExportService : IReportExportService
             new("نوع البضاعة"),
             new("الإرسالية", ReportColumnKind.Text, 0.8f),
             new("الطرود", ReportColumnKind.Integer, 0.6f),
-            new("الوزن", ReportColumnKind.Number, 0.7f)
+            // Step 9: the quantity that was priced: kg for weight pricing, m³ for volume pricing.
+            new("الوزن (كغ)", ReportColumnKind.Number, 0.7f),
+            new("الحجم (م³)", ReportColumnKind.Number, 0.7f)
         };
         columns.AddRange(codCurrencies.Select(c => new ReportColumn("الدفع عند الاستلام " + c, ReportColumnKind.Money)));
         columns.AddRange(currencies.Select(c => new ReportColumn("الأجور " + c, ReportColumnKind.Money)));
@@ -135,7 +137,9 @@ public sealed class ReportExportService : IReportExportService
             var row = new List<object?>
             {
                 x.ShipmentNumber, x.TrackingNumber, x.StatusName, x.SenderName, x.RecipientName, x.RecipientPhone,
-                x.CurrentBranchName, x.DestinationCityName, x.ServiceTypeName, x.ConsignmentNumber, x.PackageCount, x.ChargeableWeight
+                x.CurrentBranchName, x.DestinationCityName, x.ServiceTypeName, x.ConsignmentNumber, x.PackageCount,
+                x.PricingBasis == PricingBasis.Volume ? null : x.ChargeableWeight,
+                x.PricingBasis == PricingBasis.Volume ? x.TotalVolumeCbm : null
             };
             row.AddRange(codCurrencies.Select(c => x.IsCOD && x.CurrencyCode == c ? (object?)x.CODAmount : null));
             row.AddRange(currencies.Select(c => x.CurrencyCode == c ? (object?)x.TotalCharge : null));
@@ -144,7 +148,12 @@ public sealed class ReportExportService : IReportExportService
             return row.ToArray();
         }).ToList();
 
-        var totals = new List<object?> { "الإجمالي", null, null, null, null, null, null, null, null, null, rows.Sum(x => x.PackageCount), rows.Sum(x => x.ChargeableWeight) };
+        var totals = new List<object?>
+        {
+            "الإجمالي", null, null, null, null, null, null, null, null, null, rows.Sum(x => x.PackageCount),
+            rows.Where(x => x.PricingBasis != PricingBasis.Volume).Sum(x => x.ChargeableWeight),
+            rows.Where(x => x.PricingBasis == PricingBasis.Volume).Sum(x => x.TotalVolumeCbm)
+        };
         totals.AddRange(codCurrencies.Select(c => (object?)rows.Where(x => x.IsCOD && x.CurrencyCode == c).Sum(x => x.CODAmount)));
         totals.AddRange(currencies.Select(c => (object?)rows.Where(x => x.CurrencyCode == c).Sum(x => x.TotalCharge)));
         totals.Add(null);
