@@ -105,6 +105,57 @@ public sealed class ReportExportService : IReportExportService
             info.Add(("الفترة", $"{Date(query.CreatedFromUtc)} - {Date(query.CreatedToUtc)}"));
         }
 
+        // Step 9: amounts in different currencies are never added together. One column per currency for the
+        // charges ("الأجور USD", "الأجور LYD"...) and for the COD amounts (only currencies that have COD).
+        var currencies = rows.Select(x => x.CurrencyCode).Distinct().OrderBy(x => x, StringComparer.Ordinal).ToList();
+        var codCurrencies = currencies.Where(c => rows.Any(x => x.IsCOD && x.CurrencyCode == c)).ToList();
+
+        var columns = new List<ReportColumn>
+        {
+            new("رقم الشحنة", ReportColumnKind.Text, 1.5f),
+            new("رقم التتبع", ReportColumnKind.Text, 1.5f),
+            new("الحالة"),
+            new("المرسل", ReportColumnKind.Text, 1.6f),
+            new("المستلم", ReportColumnKind.Text, 1.6f),
+            new("هاتف المستلم", ReportColumnKind.Text, 1.2f),
+            new("الفرع الحالي"),
+            new("مدينة الوجهة"),
+            new("نوع البضاعة"),
+            new("الإرسالية", ReportColumnKind.Text, 0.8f),
+            new("الطرود", ReportColumnKind.Integer, 0.6f),
+            new("الوزن", ReportColumnKind.Number, 0.7f)
+        };
+        columns.AddRange(codCurrencies.Select(c => new ReportColumn("الدفع عند الاستلام " + c, ReportColumnKind.Money)));
+        columns.AddRange(currencies.Select(c => new ReportColumn("الأجور " + c, ReportColumnKind.Money)));
+        columns.Add(new ReportColumn("تاريخ الإنشاء", ReportColumnKind.DateTime, 1.3f));
+        columns.Add(new ReportColumn("تاريخ التسليم", ReportColumnKind.DateTime, 1.3f));
+
+        var tableRows = rows.Select(x =>
+        {
+            var row = new List<object?>
+            {
+                x.ShipmentNumber, x.TrackingNumber, x.StatusName, x.SenderName, x.RecipientName, x.RecipientPhone,
+                x.CurrentBranchName, x.DestinationCityName, x.ServiceTypeName, x.ConsignmentNumber, x.PackageCount, x.ChargeableWeight
+            };
+            row.AddRange(codCurrencies.Select(c => x.IsCOD && x.CurrencyCode == c ? (object?)x.CODAmount : null));
+            row.AddRange(currencies.Select(c => x.CurrencyCode == c ? (object?)x.TotalCharge : null));
+            row.Add(Local(x.CreatedAtUtc));
+            row.Add(x.DeliveredAtUtc.HasValue ? Local(x.DeliveredAtUtc.Value) : null);
+            return row.ToArray();
+        }).ToList();
+
+        var totals = new List<object?> { "الإجمالي", null, null, null, null, null, null, null, null, null, rows.Sum(x => x.PackageCount), rows.Sum(x => x.ChargeableWeight) };
+        totals.AddRange(codCurrencies.Select(c => (object?)rows.Where(x => x.IsCOD && x.CurrencyCode == c).Sum(x => x.CODAmount)));
+        totals.AddRange(currencies.Select(c => (object?)rows.Where(x => x.CurrencyCode == c).Sum(x => x.TotalCharge)));
+        totals.Add(null);
+        totals.Add(null);
+
+        foreach (var currency in currencies)
+        {
+            var total = rows.Where(x => x.CurrencyCode == currency).Sum(x => x.TotalCharge);
+            info.Add(("إجمالي الأجور " + currency, total.ToString("#,##0.00", CultureInfo.InvariantCulture)));
+        }
+
         var report = new ReportDocument
         {
             Title = "قائمة الشحنات",
@@ -115,38 +166,9 @@ public sealed class ReportExportService : IReportExportService
             {
                 new ReportSection
                 {
-                    Columns = new ReportColumn[]
-                    {
-                        new("رقم الشحنة", ReportColumnKind.Text, 1.5f),
-                        new("رقم التتبع", ReportColumnKind.Text, 1.5f),
-                        new("الحالة"),
-                        new("المرسل", ReportColumnKind.Text, 1.6f),
-                        new("المستلم", ReportColumnKind.Text, 1.6f),
-                        new("هاتف المستلم", ReportColumnKind.Text, 1.2f),
-                        new("الفرع الحالي"),
-                        new("مدينة الوجهة"),
-                        new("نوع البضاعة"),
-                        new("الإرسالية", ReportColumnKind.Text, 0.8f),
-                        new("الطرود", ReportColumnKind.Integer, 0.6f),
-                        new("الوزن", ReportColumnKind.Number, 0.7f),
-                        new("الدفع عند الاستلام", ReportColumnKind.Money),
-                        new("الأجور", ReportColumnKind.Money),
-                        new("العملة", ReportColumnKind.Text, 0.6f),
-                        new("تاريخ الإنشاء", ReportColumnKind.DateTime, 1.3f),
-                        new("تاريخ التسليم", ReportColumnKind.DateTime, 1.3f)
-                    },
-                    Rows = rows.Select(x => new object?[]
-                    {
-                        x.ShipmentNumber, x.TrackingNumber, x.StatusName, x.SenderName, x.RecipientName, x.RecipientPhone,
-                        x.CurrentBranchName, x.DestinationCityName, x.ServiceTypeName, x.ConsignmentNumber, x.PackageCount,
-                        x.ChargeableWeight, x.IsCOD ? x.CODAmount : null, x.TotalCharge, x.CurrencyCode,
-                        Local(x.CreatedAtUtc), x.DeliveredAtUtc.HasValue ? Local(x.DeliveredAtUtc.Value) : null
-                    }).ToList(),
-                    Totals = new object?[]
-                    {
-                        "الإجمالي", null, null, null, null, null, null, null, null, null, rows.Sum(x => x.PackageCount), rows.Sum(x => x.ChargeableWeight),
-                        rows.Where(x => x.IsCOD).Sum(x => x.CODAmount), rows.Sum(x => x.TotalCharge), null, null, null
-                    }
+                    Columns = columns,
+                    Rows = tableRows,
+                    Totals = totals.ToArray()
                 }
             }
         };

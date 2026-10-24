@@ -170,6 +170,8 @@ public sealed class ReportingTests : IAsyncLifetime
         Assert.True(Contains(sheet, "قائمة الشحنات"));
         Assert.True(Contains(sheet, _created.TrackingNumber));
         Assert.True(Contains(sheet, _delivered.TrackingNumber));
+        // Step 9: one charges column per currency (never one mixed total).
+        Assert.True(Contains(sheet, "الأجور SYP"));
 
         using var onlyCod = Workbook(await Use(s => s.ShipmentsAsync(new ShipmentListQuery { IsCOD = true }, ExportFormat.Excel, CancellationToken.None)));
         Assert.False(Contains(onlyCod.Worksheets.First(), _created.TrackingNumber));
